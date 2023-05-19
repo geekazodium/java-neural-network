@@ -43,6 +43,7 @@ public class Main {
         appWindow.paint(appWindow.getGraphics());
         appWindow.setVisible(true);
         while (running){
+            input.paint(input.getGraphics());
             try {
                 Thread.sleep(1000/60);
             } catch (InterruptedException e) {
