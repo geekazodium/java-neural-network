@@ -50,12 +50,10 @@ public class NumberDrawCanvas extends JPanel implements MouseListener, MouseMoti
         this.content[index] = value;
     }
     public void increasePixel(int x,int y,int value){
-        System.out.println(x+","+y);
         if(x<0||x>=PIXELS)return;
         if(y<0||y>=PIXELS)return;
         int index = x+y*PIXELS;
         int brightness = Math.min(Math.max(value + this.content[index],0),255);
-        System.out.println(brightness);
         this.content[index] = brightness;
     }
 
@@ -91,7 +89,7 @@ public class NumberDrawCanvas extends JPanel implements MouseListener, MouseMoti
             for (int x = 0; x < 9; x++) {
                 int drawX = (int) brushX-4+x;
                 int drawY = (int) brushY-4+y;
-                increasePixel(drawX, drawY, (int) Math.max(255-distanceTo(brushX,brushY,drawX,drawY)*128,0));
+                increasePixel(drawX, drawY, (int) Math.max(0.4*(255-distanceTo(brushX,brushY,drawX,drawY)*128),0));
             }
         }
     }
