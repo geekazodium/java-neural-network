@@ -1,21 +1,12 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.Main;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
+import com.google.gson.*;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class NeuralNetwork {
     private final OutputLayer outputLayer;
@@ -23,21 +14,26 @@ public class NeuralNetwork {
     private final AbstractLayer[] layers;
 
     public NeuralNetwork(InputLayer inputLayer, HiddenLayer[] hiddenLayers, OutputLayer outputLayer){
+        this(inputLayer,hiddenLayers,outputLayer,false);
+    }
+
+    public NeuralNetwork(InputLayer inputLayer, HiddenLayer[] hiddenLayers, OutputLayer outputLayer,boolean init){
         this.inputLayer = inputLayer;
         this.outputLayer = outputLayer;
         this.layers = new AbstractLayer[hiddenLayers.length+2];
         this.layers[0] = this.inputLayer;
         this.layers[this.layers.length-1] = this.outputLayer;
         System.arraycopy(hiddenLayers, 0, this.layers, 1, hiddenLayers.length);
-        initLayers();
+        initLayers(init);
     }
 
-    private void initLayers() {
+    private void initLayers(boolean init) {
         for (int i = 0; i < this.layers.length-1; i++) {
             NonFinalLayer layer = (NonFinalLayer) this.layers[i];
             AbstractEvaluateLayer next = (AbstractEvaluateLayer) this.layers[i + 1];
             next.setPreviousLayer((AbstractLayer) layer);
             layer.setNextLayer(next);
+            if(init) continue;
             next.initBiases();
             next.initWeights();
         }
@@ -108,7 +104,6 @@ public class NeuralNetwork {
     public static void main(String[] args) throws Exception {
         Path basePath = Path.of(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
         Path resourcesPath = Path.of(basePath.getParent().getParent().getParent().toString() + File.separator + "resources" + File.separator + "main");
-        System.out.println(resourcesPath);
 
         String imagePath = resourcesPath+File.separator+"train-images.idx3-ubyte";
         String labelPath = resourcesPath+File.separator+"train-labels.idx1-ubyte";
@@ -121,15 +116,20 @@ public class NeuralNetwork {
         imageStream.close();
         labelStream.close();
         List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
-
-        NeuralNetwork neuralNetwork = new NeuralNetwork(
-                new InputLayer(TrainingImage.width*TrainingImage.height),
-                new HiddenLayer[]{
-                        new HiddenLayer(100),
-                        new HiddenLayer(100)
-                },
-                new OutputLayer(10)
-        );
+        NeuralNetwork neuralNetwork;
+        File networkFile = new File("Network-784-100-100-10.json");
+        if (networkFile.exists()){
+            neuralNetwork = deserialize(networkFile);
+        }else {
+            neuralNetwork = new NeuralNetwork(
+                            new InputLayer(TrainingImage.width * TrainingImage.height),
+                            new HiddenLayer[]{
+                                    new HiddenLayer(100),
+                                    new HiddenLayer(100)
+                            },
+                            new OutputLayer(10)
+            );
+        }
 
         neuralNetwork.enableTraining();
 
@@ -147,7 +147,8 @@ public class NeuralNetwork {
             );
             if(i%50 == 0){
                 neuralNetwork.serialize(new File("Network-784-100-100-10.json"));
-                for (TrainingImage trainingImage : trainingData.subList(0,10)) {
+                int randint = random.nextInt(trainingSetSize-10);
+                for (TrainingImage trainingImage : trainingData.subList(randint,randint)) {
                     trainingImage.log();
                     float[] out = neuralNetwork.evaluate(
                             trainingImage.getData(),
@@ -249,5 +250,57 @@ public class NeuralNetwork {
 
         Thread saveThread = new Thread(saveToFile);
         saveThread.start();
+    }
+
+    public static NeuralNetwork deserialize(File file) throws IOException {
+        FileInputStream inputStream = new FileInputStream(file);
+        byte[] b = inputStream.readAllBytes();
+        inputStream.close();
+        String json = new String(b,StandardCharsets.UTF_8);
+        JsonObject object = (JsonObject) JsonParser.parseString(json);
+        int nodes = object.get("inputLayer").getAsJsonObject().get("nodes").getAsInt();
+        InputLayer inLayer = new InputLayer(nodes);
+
+        JsonArray evaluateLayers = object.get("evaluateLayers").getAsJsonArray();
+
+        List<HiddenLayer> hiddenLayers = new ArrayList<>();
+
+        OutputLayer outLayer = null;
+
+        for (JsonElement evaluateLayer : evaluateLayers) {
+            JsonObject layerJson = evaluateLayer.getAsJsonObject();
+            String type = layerJson.get("type").getAsString();
+
+            if(Objects.equals(type, "HiddenLayer")){
+                HiddenLayer hiddenLayer = new HiddenLayer(layerJson.get("nodes").getAsInt());
+                JsonArray weights = layerJson.get("weights").getAsJsonArray();
+                copyWeights(hiddenLayer, weights);
+                JsonArray biases = layerJson.get("biases").getAsJsonArray();
+                copyBiases(hiddenLayer,biases);
+                hiddenLayers.add(hiddenLayer);
+            }else if(Objects.equals(type, "OutputLayer")){
+                outLayer = new OutputLayer(layerJson.get("nodes").getAsInt());
+                JsonArray weights = layerJson.get("weights").getAsJsonArray();
+                copyWeights(outLayer, weights);
+                JsonArray biases = layerJson.get("biases").getAsJsonArray();
+                copyBiases(outLayer,biases);
+            }
+        }
+        HiddenLayer[] hiddenLayersArray = new HiddenLayer[hiddenLayers.size()];
+        hiddenLayers.toArray(hiddenLayersArray);
+        return new NeuralNetwork(inLayer,hiddenLayersArray,outLayer,true);
+    }
+
+    private static void copyWeights(AbstractEvaluateLayer hiddenLayer, JsonArray array) {
+        hiddenLayer.weights = new float[array.size()];
+        for (int i = 0; i < array.size(); i++) {
+            hiddenLayer.weights[i] = array.get(i).getAsFloat();
+        }
+    }
+    private static void copyBiases(AbstractEvaluateLayer hiddenLayer, JsonArray array) {
+        hiddenLayer.biases = new float[array.size()];
+        for (int i = 0; i < array.size(); i++) {
+            hiddenLayer.biases[i] = array.get(i).getAsFloat();
+        }
     }
 }

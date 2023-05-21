@@ -5,6 +5,11 @@ public class OutputLayer extends AbstractEvaluateLayer{
         super(nodes);
     }
 
+    @Override
+    protected String name() {
+        return "OutputLayer";
+    }
+
 
     public float[] getOutputs() {
         float[] out = new float[this.nodeCount];

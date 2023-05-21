@@ -156,7 +156,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
         JsonObject object = new JsonObject();
         object.add("weights", serializeFloatArray(this.weights));
         object.add("biases", serializeFloatArray(this.biases));
-        object.addProperty("type", this.getClass().getSimpleName());
+        object.addProperty("type", this.name());
         object.addProperty("nodes", this.nodeCount);
         return object;
     }
@@ -168,4 +168,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
         }
         return jsonArray;
     }
+
+    protected abstract String name();
 }
