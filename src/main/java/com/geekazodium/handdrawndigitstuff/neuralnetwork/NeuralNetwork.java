@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 
 public class NeuralNetwork {
     private final OutputLayer outputLayer;
@@ -43,7 +44,7 @@ public class NeuralNetwork {
     private void backpropagate(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
         float[] in = inputFunction.createInputs(trainingDataObject);
         float[] out = evaluate(in,activationFunction);
-        float[] cost = costFunction.cost(out,trainingDataObject);
+        //float[] cost = costFunction.cost(out,trainingDataObject);
 
         AbstractLayer layer = this.outputLayer;
         float[] activationChanges = costFunction.derivative(out,trainingDataObject);
@@ -63,8 +64,6 @@ public class NeuralNetwork {
             activationChanges = evaluateLayer.getInputActivationDerivatives(nodeDerivatives);
             layer = evaluateLayer.previousLayer;
         }
-
-        System.out.println(Arrays.toString(cost));
     }
 
     public void batch(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
@@ -93,6 +92,9 @@ public class NeuralNetwork {
         }
     }
 
+    //Training attempt #1 - failed
+    //all weights and biases passed the float limit
+
     public static void main(String[] args) throws Exception {
         String imagePath = "C:\\Users\\Geeka\\Documents\\GitHub\\handdrawn-digit-test\\src\\main\\resources\\train-images.idx3-ubyte";
         String labelPath = "C:\\Users\\Geeka\\Documents\\GitHub\\handdrawn-digit-test\\src\\main\\resources\\train-labels.idx1-ubyte";
@@ -105,7 +107,6 @@ public class NeuralNetwork {
         imageStream.close();
         labelStream.close();
         List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
-        System.out.println(trainingData.size());
 
         NeuralNetwork neuralNetwork = new NeuralNetwork(
                 new InputLayer(TrainingImage.width*TrainingImage.height),
@@ -118,35 +119,38 @@ public class NeuralNetwork {
 
         neuralNetwork.enableTraining();
 
+        int trainingSetSize = 6000;
+        int batchSize = 1000;
+        Random random = new Random();
 
-        neuralNetwork.batch(
-                trainingData.subList(1000,1500),
-                trainingDataObject -> ((TrainingImage) trainingDataObject).getData(),
-                new NumberRecognitionCost(),
-                new LeakyRelU()
-        );
-        neuralNetwork.batch(
-                trainingData.subList(500,1000),
-                trainingDataObject -> ((TrainingImage) trainingDataObject).getData(),
-                new NumberRecognitionCost(),
-                new LeakyRelU()
-        );
-        neuralNetwork.batch(
-                trainingData.subList(0,500),
-                trainingDataObject -> ((TrainingImage) trainingDataObject).getData(),
-                new NumberRecognitionCost(),
-                new LeakyRelU()
-        );
-
-        for (TrainingImage trainingImage : trainingData) {
-            trainingImage.log();
-            neuralNetwork.backpropagate(
-                    trainingImage,
+        for (int i = 0; i < 1000; i++) {
+            int start = random.nextInt(trainingSetSize-batchSize);
+            neuralNetwork.batch(
+                    trainingData.subList(start,start+batchSize),
                     trainingDataObject -> ((TrainingImage) trainingDataObject).getData(),
                     new NumberRecognitionCost(),
                     new LeakyRelU()
             );
+            if(i%50 == 0){
+                for (TrainingImage trainingImage : trainingData.subList(0,10)) {
+                    trainingImage.log();
+                    float[] out = neuralNetwork.evaluate(
+                            trainingImage.getData(),
+                            new LeakyRelU()
+                    );
+                    float highestVal = -100;
+                    int highestIndex = -1;
+                    for (int number = 0; number < out.length; number++) {
+                        if(out[number] > highestVal){
+                            highestIndex = number;
+                            highestVal = out[number];
+                        }
+                    }
+                    System.out.println("the neural network said:"+highestIndex);
+                }
+            }
         }
+
     }
 
     public static class NumberRecognitionCost implements CostFunction {
