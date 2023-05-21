@@ -64,9 +64,7 @@ public class NeuralNetwork {
         );
 
         for (int i = 0; i < trainingData.size(); i++) {
-
             trainingData.get(i).log();
-
             System.out.println(Arrays.toString(neuralNetwork.evaluate(trainingData.get(i).getData())));
         }
 
