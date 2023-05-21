@@ -1,10 +1,6 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 public class NeuralNetwork {
     private final OutputLayer outputLayer;
@@ -40,53 +36,18 @@ public class NeuralNetwork {
         return this.outputLayer.getOutputs();
     }
 
-    public static void main(String[] args) throws Exception {
-        String imagePath = "C:\\Users\\Geeka\\Documents\\GitHub\\handdrawn-digit-test\\src\\main\\resources\\train-images.idx3-ubyte";
-        String labelPath = "C:\\Users\\Geeka\\Documents\\GitHub\\handdrawn-digit-test\\src\\main\\resources\\train-labels.idx1-ubyte";
-        File imageFile = new File(imagePath);
-        File labelFile = new File(labelPath);
-        FileInputStream imageStream = new FileInputStream(imageFile);
-        FileInputStream labelStream = new FileInputStream(labelFile);
-        byte[] imageFileBytes = imageStream.readAllBytes();
-        byte[] labelStreamBytes = labelStream.readAllBytes();
-        imageStream.close();
-        labelStream.close();
-        List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
-
-
+    public static void main(String[] args){
         NeuralNetwork neuralNetwork = new NeuralNetwork(
-                new InputLayer(TrainingImage.width*TrainingImage.height),
+                new InputLayer(28*28),
                 new HiddenLayer[]{
-                        new HiddenLayer(100),
-                        new HiddenLayer(100)
+                        new HiddenLayer(20),
+                        new HiddenLayer(20)
                 },
                 new OutputLayer(10)
         );
-
-        for (int i = 0; i < trainingData.size(); i++) {
-
-            trainingData.get(i).log();
-
-            System.out.println(Arrays.toString(neuralNetwork.evaluate(trainingData.get(i).getData())));
-        }
-
+        neuralNetwork.evaluate(new float[]{
+                0,0,0,0,0,0,1,1,1,1
+        });
+        System.out.println(Arrays.toString(neuralNetwork.outputLayer.getOutputs()));
     }
-
-    protected static List<TrainingImage> loadTrainingData(byte[] imageFileBytes, byte[] labelStreamBytes){
-        List<TrainingImage> images = new ArrayList<>();
-        byte[] image = new byte[TrainingImage.width*TrainingImage.height];
-        int c = 0;
-        int labelReaderIndex = 8;
-        for (int i = 16;i<imageFileBytes.length;i++) {
-            image[c] = imageFileBytes[i];
-            c++;
-            if (c >= TrainingImage.width*TrainingImage.height) {
-                c = 0;
-                images.add(new TrainingImage(image.clone(),labelStreamBytes[labelReaderIndex]));
-                labelReaderIndex++;
-            }
-        }
-        return images;
-    }
-
 }
