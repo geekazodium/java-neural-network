@@ -2,12 +2,10 @@ package com.geekazodium.handdrawndigitstuff;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 
-public class NumberDrawCanvas extends JPanel implements MouseListener, MouseMotionListener {
+public class NumberDrawCanvas extends JPanel implements MouseListener, MouseMotionListener, KeyListener {
     public static int PIXEL_SIZE = 14;
     public static int PIXELS = 28;
     public int[] content = new int[PIXELS*PIXELS];
@@ -113,7 +111,6 @@ public class NumberDrawCanvas extends JPanel implements MouseListener, MouseMoti
 
     @Override
     public void mouseExited(MouseEvent e) {
-
     }
 
     @Override
@@ -124,5 +121,22 @@ public class NumberDrawCanvas extends JPanel implements MouseListener, MouseMoti
     @Override
     public void mouseMoved(MouseEvent e) {
 
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        if(e.getKeyCode() == KeyEvent.VK_SPACE) {
+            this.content = new int[PIXELS*PIXELS];
+        }
     }
 }

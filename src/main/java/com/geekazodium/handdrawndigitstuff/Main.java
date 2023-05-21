@@ -60,6 +60,7 @@ public class Main {
 
         running = true;
         appWindow.paint(appWindow.getGraphics());
+        appWindow.addKeyListener(input);
         appWindow.setVisible(true);
         int frameCounter = 0;
         while (running){

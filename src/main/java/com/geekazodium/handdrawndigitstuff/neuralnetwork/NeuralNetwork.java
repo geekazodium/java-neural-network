@@ -143,8 +143,8 @@ public class NeuralNetwork {
                     trainingData.subList(start,start+batchSize),
                     trainingDataObject -> ((TrainingImage) trainingDataObject).getDataTransformed(
                             random.nextFloat(-0.4f,0.4f),
-                            random.nextInt(-4,4),
-                            random.nextInt(-4,4)
+                            random.nextFloat(-6,6),
+                            random.nextFloat(-6,6)
                     ),
                     new NumberRecognitionCost(),
                     new LeakyRelU()
@@ -154,8 +154,8 @@ public class NeuralNetwork {
                 int randint = random.nextInt(trainingSetSize-10);
                 for (TrainingImage trainingImage : trainingData.subList(randint,randint+10)) {
                     float rotate = random.nextFloat(-0.4f,0.4f);
-                    int x = random.nextInt(-4,4);
-                    int y = random.nextInt(-4,4);
+                    float x = random.nextFloat(-6,6);
+                    float y = random.nextFloat(-6,6);
 
                     trainingImage.log(rotate,x,y);
 

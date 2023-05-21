@@ -13,7 +13,7 @@ public class TrainingImage {
         }
         this.label = label;
     }
-    public void log(float rotate, int x, int y){
+    public void log(float rotate, float x, float y){
         String asciiColor = " -=*%#";
         float asciiColorLength = asciiColor.length();
         for (int i = 0; i < width*height; i++) {
@@ -34,19 +34,19 @@ public class TrainingImage {
         return this.data;
     }
 
-    public float[] getDataTransformed(float rotation, int shiftX, int shiftY){
+    public float[] getDataTransformed(float rotation, float shiftX, float shiftY){
         float[] dataPoints = new float[width*height];
         for (int i = 0; i < width * height; i++) {
             int x = i%width;
             int y = Math.floorDiv(i,width);
-            x += shiftX;
-            y += shiftY;
             x -= 14;
             y -= 14;
             float rotatedX = (float) (y*Math.sin(rotation)+x*Math.cos(rotation));
             float rotatedY = (float) (y*Math.cos(rotation)-x*Math.sin(rotation));
             rotatedX += 14;
             rotatedY += 14;
+            rotatedX += shiftX;
+            rotatedY += shiftY;
             x = (int) Math.floor(rotatedX);
             y = (int) Math.floor(rotatedY);
             int xEnd = x+1;
