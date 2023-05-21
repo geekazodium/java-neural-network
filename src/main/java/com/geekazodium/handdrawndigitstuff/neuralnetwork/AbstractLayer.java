@@ -9,4 +9,5 @@ public abstract class AbstractLayer {
     }
 
     public abstract void evaluate(ActivationFunction activationFunction);
+
 }

@@ -1,6 +1,15 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
-@FunctionalInterface
 public interface ActivationFunction {
     float activation(float in);
+
+    float derivative(float in);
+
+    default float[] derivative(float[] in){
+        float[] d = new float[in.length];
+        for (int i = 0; i < in.length; i++) {
+            d[i] = this.derivative(in[i]);
+        }
+        return d;
+    }
 }

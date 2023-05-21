@@ -32,12 +32,65 @@ public class NeuralNetwork {
         }
     }
 
-    public float[] evaluate(float[] inputs){
+    public float[] evaluate(float[] inputs,ActivationFunction activationFunction){
         this.inputLayer.setInputs(inputs);
         for (int i = 1; i < this.layers.length; i++) {
-            this.layers[i].evaluate((in -> (in>0)?in:0.01f*in));
+            this.layers[i].evaluate(activationFunction);
         }
         return this.outputLayer.getOutputs();
+    }
+
+    private void backpropagate(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
+        float[] in = inputFunction.createInputs(trainingDataObject);
+        float[] out = evaluate(in,activationFunction);
+        float[] cost = costFunction.cost(out,trainingDataObject);
+
+        AbstractLayer layer = this.outputLayer;
+        float[] activationChanges = costFunction.derivative(out,trainingDataObject);
+        while (layer instanceof AbstractEvaluateLayer){
+            AbstractEvaluateLayer evaluateLayer = (AbstractEvaluateLayer) layer;
+            // compute derivatives specific to out layer
+            float[] activationDerivatives = activationFunction.derivative(evaluateLayer.combinedInputs);
+            float[] nodeDerivatives = IndividualMultiply(activationChanges,activationDerivatives);
+
+            // changes biases for out layer
+            evaluateLayer.accumulateBiasChanges(nodeDerivatives);
+            // changes for out layer
+            float[] weightChanges = evaluateLayer.getWeightDerivatives(nodeDerivatives);
+            evaluateLayer.accumulateWeightChanges(weightChanges);
+
+            // derivative for 2nd layer
+            activationChanges = evaluateLayer.getInputActivationDerivatives(nodeDerivatives);
+            layer = evaluateLayer.previousLayer;
+        }
+
+        System.out.println(Arrays.toString(cost));
+    }
+
+    public void batch(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
+        trainingDataObjects.forEach(o -> {
+            this.backpropagate(o,inputFunction,costFunction,activationFunction);
+        });
+        for (AbstractLayer layer : this.layers) {
+            if(!(layer instanceof AbstractEvaluateLayer evaluateLayer))continue;
+            evaluateLayer.pushWeightAccumulator();
+            evaluateLayer.pushBiasesAccumulator();
+        }
+    }
+
+    private float[] IndividualMultiply(float[] a, float[] b) {
+        float[] der = new float[a.length];
+        for (int i = 0; i < a.length; i++) {
+            der[i] = a[i]*b[i];
+        }
+        return der;
+    }
+
+    public void enableTraining(){
+        for (int i = 1; i < this.layers.length; i++) {
+            if(!(this.layers[i] instanceof AbstractEvaluateLayer evaluateLayer))continue;
+            evaluateLayer.enableTraining();
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -52,7 +105,7 @@ public class NeuralNetwork {
         imageStream.close();
         labelStream.close();
         List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
-
+        System.out.println(trainingData.size());
 
         NeuralNetwork neuralNetwork = new NeuralNetwork(
                 new InputLayer(TrainingImage.width*TrainingImage.height),
@@ -63,11 +116,67 @@ public class NeuralNetwork {
                 new OutputLayer(10)
         );
 
-        for (int i = 0; i < trainingData.size(); i++) {
-            trainingData.get(i).log();
-            System.out.println(Arrays.toString(neuralNetwork.evaluate(trainingData.get(i).getData())));
+        neuralNetwork.enableTraining();
+
+
+        neuralNetwork.batch(
+                trainingData.subList(1000,1500),
+                trainingDataObject -> ((TrainingImage) trainingDataObject).getData(),
+                new NumberRecognitionCost(),
+                new LeakyRelU()
+        );
+        neuralNetwork.batch(
+                trainingData.subList(500,1000),
+                trainingDataObject -> ((TrainingImage) trainingDataObject).getData(),
+                new NumberRecognitionCost(),
+                new LeakyRelU()
+        );
+        neuralNetwork.batch(
+                trainingData.subList(0,500),
+                trainingDataObject -> ((TrainingImage) trainingDataObject).getData(),
+                new NumberRecognitionCost(),
+                new LeakyRelU()
+        );
+
+        for (TrainingImage trainingImage : trainingData) {
+            trainingImage.log();
+            neuralNetwork.backpropagate(
+                    trainingImage,
+                    trainingDataObject -> ((TrainingImage) trainingDataObject).getData(),
+                    new NumberRecognitionCost(),
+                    new LeakyRelU()
+            );
+        }
+    }
+
+    public static class NumberRecognitionCost implements CostFunction {
+        @Override
+        public float[] cost(float[] outs, Object trainingDataObj){
+            TrainingImage image = ((TrainingImage) trainingDataObj);
+            float[] costs = new float[10];
+            for (int i = 0; i < outs.length; i++) {
+                if(i == image.label){
+                    costs[i]=(outs[i]-1)*(outs[i]-1);
+                }else {
+                    costs[i]=(outs[i]-0)*(outs[i]-0);
+                }
+            }
+            return costs;
         }
 
+        @Override
+        public float[] derivative(float[] outs, Object trainingDataObj) {
+            TrainingImage image = ((TrainingImage) trainingDataObj);
+            float[] derivatives = new float[10];
+            for (int i = 0; i < outs.length; i++) {
+                if(i == image.label){
+                    derivatives[i]=2*(outs[i]-1);
+                }else {
+                    derivatives[i]=2*(outs[i]-0);
+                }
+            }
+            return derivatives;
+        }
     }
 
     protected static List<TrainingImage> loadTrainingData(byte[] imageFileBytes, byte[] labelStreamBytes){

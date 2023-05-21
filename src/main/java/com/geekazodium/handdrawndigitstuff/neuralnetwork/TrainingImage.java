@@ -2,7 +2,7 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 public class TrainingImage {
     private final float[] data;
-    private final byte label;
+    public final byte label;
     public static final int height = 28;
     public static final int width = 28;
 
