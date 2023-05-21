@@ -141,17 +141,26 @@ public class NeuralNetwork {
             int start = random.nextInt(trainingSetSize-batchSize);
             neuralNetwork.batch(
                     trainingData.subList(start,start+batchSize),
-                    trainingDataObject -> ((TrainingImage) trainingDataObject).getData(),
+                    trainingDataObject -> ((TrainingImage) trainingDataObject).getDataTransformed(
+                            random.nextFloat(-0.4f,0.4f),
+                            random.nextInt(-4,4),
+                            random.nextInt(-4,4)
+                    ),
                     new NumberRecognitionCost(),
                     new LeakyRelU()
             );
             if(i%50 == 0){
                 neuralNetwork.serialize(new File("Network-784-100-100-10.json"));
                 int randint = random.nextInt(trainingSetSize-10);
-                for (TrainingImage trainingImage : trainingData.subList(randint,randint)) {
-                    trainingImage.log();
+                for (TrainingImage trainingImage : trainingData.subList(randint,randint+10)) {
+                    float rotate = random.nextFloat(-0.4f,0.4f);
+                    int x = random.nextInt(-4,4);
+                    int y = random.nextInt(-4,4);
+
+                    trainingImage.log(rotate,x,y);
+
                     float[] out = neuralNetwork.evaluate(
-                            trainingImage.getData(),
+                            trainingImage.getDataTransformed(rotate,x,y),
                             new LeakyRelU()
                     );
                     float highestVal = -100;
