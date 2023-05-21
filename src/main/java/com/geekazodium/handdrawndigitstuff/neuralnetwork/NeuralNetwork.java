@@ -147,6 +147,7 @@ public class NeuralNetwork {
                         }
                     }
                     System.out.println("the neural network said:"+highestIndex);
+                    System.out.println(Arrays.toString(out));
                 }
             }
         }

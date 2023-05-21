@@ -28,7 +28,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
 
     private void fillArrayWithRandomValues(float[] array){
         for (int i = 0; i <array.length; i++) {
-            array[i] = (float) (Math.random()*2d-1d);
+            array[i] = (float) ((Math.random()*2d-1d)/10d);
         }
     }
 
@@ -85,6 +85,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
             for (int n = 0;n < this.nodeCount; n++){// the previous node activation is the derivative of the weight to the value before activation f()
                 activationDerivatives[p] += nodeDerivatives[n]*this.weights[p+n*prevLayerCount]; // chain rule
             }
+            //activationDerivatives[p] /= this.nodeCount;
         }
 
         return activationDerivatives;
