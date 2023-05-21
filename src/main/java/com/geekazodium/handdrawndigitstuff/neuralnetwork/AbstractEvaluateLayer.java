@@ -1,5 +1,8 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
 public abstract class AbstractEvaluateLayer extends AbstractLayer{
     protected AbstractLayer previousLayer;
 
@@ -147,5 +150,22 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
         }
         this.biasAccumulations = 0;
         this.biasAccumulator = null;
+    }
+
+    public JsonObject serializeToJson(){
+        JsonObject object = new JsonObject();
+        object.add("weights", serializeFloatArray(this.weights));
+        object.add("biases", serializeFloatArray(this.biases));
+        object.addProperty("type", this.getClass().getSimpleName());
+        object.addProperty("nodes", this.nodeCount);
+        return object;
+    }
+
+    private JsonArray serializeFloatArray(float[] array){
+        JsonArray jsonArray = new JsonArray();
+        for (float v : array) {
+            jsonArray.add(v);
+        }
+        return jsonArray;
     }
 }

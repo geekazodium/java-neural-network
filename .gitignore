@@ -14,6 +14,7 @@ build/
 *.iml
 *.ipr
 out/
+.idea/uiDesigner.xml
 !**/src/main/**/out/
 !**/src/test/**/out/
 

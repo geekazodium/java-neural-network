@@ -1,7 +1,17 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
+import com.geekazodium.handdrawndigitstuff.Main;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -96,8 +106,12 @@ public class NeuralNetwork {
     //all weights and biases passed the float limit
 
     public static void main(String[] args) throws Exception {
-        String imagePath = "C:\\Users\\Geeka\\Documents\\GitHub\\handdrawn-digit-test\\src\\main\\resources\\train-images.idx3-ubyte";
-        String labelPath = "C:\\Users\\Geeka\\Documents\\GitHub\\handdrawn-digit-test\\src\\main\\resources\\train-labels.idx1-ubyte";
+        Path basePath = Path.of(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        Path resourcesPath = Path.of(basePath.getParent().getParent().getParent().toString() + File.separator + "resources" + File.separator + "main");
+        System.out.println(resourcesPath);
+
+        String imagePath = resourcesPath+File.separator+"train-images.idx3-ubyte";
+        String labelPath = resourcesPath+File.separator+"train-labels.idx1-ubyte";
         File imageFile = new File(imagePath);
         File labelFile = new File(labelPath);
         FileInputStream imageStream = new FileInputStream(imageFile);
@@ -132,6 +146,7 @@ public class NeuralNetwork {
                     new LeakyRelU()
             );
             if(i%50 == 0){
+                neuralNetwork.serialize(new File("Network-784-100-100-10.json"));
                 for (TrainingImage trainingImage : trainingData.subList(0,10)) {
                     trainingImage.log();
                     float[] out = neuralNetwork.evaluate(
@@ -201,4 +216,38 @@ public class NeuralNetwork {
         return images;
     }
 
+    public void serialize(File file){
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        JsonObject object = new JsonObject();
+
+        JsonObject inputLayer = new JsonObject();
+        object.add("inputLayer",inputLayer);
+
+        inputLayer.addProperty("nodes",this.inputLayer.nodeCount);
+
+        JsonArray evaluateLayers = new JsonArray();
+
+        for (int i = 1; i < this.layers.length; i++) {
+            evaluateLayers.add(((AbstractEvaluateLayer)this.layers[i]).serializeToJson());
+        }
+        object.add("evaluateLayers",evaluateLayers);
+
+
+        String out = gson.toJson(object);
+        Runnable saveToFile = () -> {
+            try {
+                if (!file.exists()) {
+                    file.createNewFile();
+                }
+                FileOutputStream outputStream = new FileOutputStream(file);
+                outputStream.write(out.getBytes(StandardCharsets.UTF_8));
+                outputStream.close();
+            } catch(IOException e){
+                System.out.println(e.getMessage());
+            }
+        };
+
+        Thread saveThread = new Thread(saveToFile);
+        saveThread.start();
+    }
 }
