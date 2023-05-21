@@ -11,9 +11,4 @@ public class HiddenLayer extends AbstractEvaluateLayer implements NonFinalLayer{
     public void setNextLayer(AbstractLayer nextLayer){
         this.nextLayer = nextLayer;
     }
-
-    @Override
-    public void evaluate() {
-
-    }
 }

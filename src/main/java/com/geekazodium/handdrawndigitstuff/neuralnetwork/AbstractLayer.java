@@ -8,5 +8,5 @@ public abstract class AbstractLayer {
         this.nodes = new float[nodes];
     }
 
-    public abstract void evaluate();
+    public abstract void evaluate(ActivationFunction activationFunction);
 }
