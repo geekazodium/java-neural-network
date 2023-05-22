@@ -23,7 +23,7 @@ public class TrainingImage {
             System.out.print(" "+asciiColor.charAt((int)(this.getDataTransformed(rotate,x,y,scale)[i]*asciiColorLength)));
         }
         System.out.println();
-        System.out.println(label);
+        System.out.println(label+","+"rotation:"+rotate+" x:"+x+" y:"+y+" scale:"+scale);
     }
 
     public static int normalizeByte(byte b){

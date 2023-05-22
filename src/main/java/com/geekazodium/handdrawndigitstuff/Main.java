@@ -53,7 +53,7 @@ public class Main {
 
         NeuralNetwork neuralNetwork;
         try {
-            neuralNetwork = NeuralNetwork.deserialize(new File("Network-784-100-100-10.json"));
+            neuralNetwork = NeuralNetwork.deserialize(new File("Network-784-200-100-50-10.json"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -72,7 +72,7 @@ public class Main {
                     in[i] = input.content[i]/256f;
                 }
                 float[] out = neuralNetwork.evaluate(in,new LeakyRelU());
-                float highestVal = -100;
+                float highestVal = 0.1f;
                 int highestIndex = -1;
                 for (int number = 0; number < out.length; number++) {
                     if(out[number] > highestVal){

@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.*;
 
 public class NeuralNetwork {
+    public static final String SAVE_PATH = "Network-784-200-100-50-10.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     private final AbstractLayer[] layers;
@@ -117,15 +118,16 @@ public class NeuralNetwork {
         labelStream.close();
         List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
         NeuralNetwork neuralNetwork;
-        File networkFile = new File("Network-784-100-100-10.json");
+        File networkFile = new File(SAVE_PATH);
         if (networkFile.exists()){
             neuralNetwork = deserialize(networkFile);
         }else {
             neuralNetwork = new NeuralNetwork(
                             new InputLayer(TrainingImage.width * TrainingImage.height),
                             new HiddenLayer[]{
+                                    new HiddenLayer(200),
                                     new HiddenLayer(100),
-                                    new HiddenLayer(100)
+                                    new HiddenLayer(50)
                             },
                             new OutputLayer(10)
             );
@@ -139,6 +141,8 @@ public class NeuralNetwork {
 
         for (int i = 0; i < 1000; i++) {
             int start = random.nextInt(trainingSetSize-batchSize);
+
+            long startTime = System.currentTimeMillis();
             neuralNetwork.batch(
                     trainingData.subList(start,start+batchSize),
                     trainingDataObject -> ((TrainingImage) trainingDataObject).getDataTransformed(
@@ -150,8 +154,13 @@ public class NeuralNetwork {
                     new NumberRecognitionCost(),
                     new LeakyRelU()
             );
-            if(i%50 == 0){
-                neuralNetwork.serialize(new File("Network-784-100-100-10.json"));
+            long now = System.currentTimeMillis();
+            System.out.println("batch #"+(i%50+1)+" completed in:"+(now-startTime)+"ms");
+
+            if(i%50 == 49){
+                neuralNetwork.serialize(new File(SAVE_PATH));
+                int total = 0;
+                int correct = 0;
                 int randint = random.nextInt(trainingSetSize-10);
                 for (TrainingImage trainingImage : trainingData.subList(randint,randint+10)) {
                     float rotate = random.nextFloat(-0.4f,0.4f);
@@ -173,9 +182,15 @@ public class NeuralNetwork {
                             highestVal = out[number];
                         }
                     }
+
+                    total++;
+                    if(highestIndex == trainingImage.label){
+                        correct++;
+                    }
                     System.out.println("the neural network said:"+highestIndex);
                     System.out.println(Arrays.toString(out));
                 }
+                System.out.println("test accuracy:"+(float)correct/(float)total);
             }
         }
 
