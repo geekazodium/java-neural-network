@@ -144,7 +144,8 @@ public class NeuralNetwork {
                     trainingDataObject -> ((TrainingImage) trainingDataObject).getDataTransformed(
                             random.nextFloat(-0.4f,0.4f),
                             random.nextFloat(-6,6),
-                            random.nextFloat(-6,6)
+                            random.nextFloat(-6,6),
+                            random.nextFloat(1f,1.5f)
                     ),
                     new NumberRecognitionCost(),
                     new LeakyRelU()
@@ -156,11 +157,12 @@ public class NeuralNetwork {
                     float rotate = random.nextFloat(-0.4f,0.4f);
                     float x = random.nextFloat(-6,6);
                     float y = random.nextFloat(-6,6);
+                    float scale = random.nextFloat(1f,1.5f);
 
-                    trainingImage.log(rotate,x,y);
+                    trainingImage.log(rotate,x,y,scale);
 
                     float[] out = neuralNetwork.evaluate(
-                            trainingImage.getDataTransformed(rotate,x,y),
+                            trainingImage.getDataTransformed(rotate,x,y,scale),
                             new LeakyRelU()
                     );
                     float highestVal = -100;
