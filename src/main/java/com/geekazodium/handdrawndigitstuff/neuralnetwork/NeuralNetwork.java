@@ -140,7 +140,7 @@ public class NeuralNetwork {
         Random random = new Random();
 
         for (int i = 0; i < 1000; i++) {
-            int start = random.nextInt(trainingSetSize-batchSize);
+            int start = random.nextInt(trainingSetSize);
 
             long startTime = System.currentTimeMillis();
             neuralNetwork.batch(
@@ -149,7 +149,7 @@ public class NeuralNetwork {
                             random.nextFloat(-0.4f,0.4f),
                             random.nextFloat(-6,6),
                             random.nextFloat(-6,6),
-                            random.nextFloat(1f,1.5f)
+                            random.nextFloat(0.8f,1.8f)
                     ),
                     new NumberRecognitionCost(),
                     new LeakyRelU()
@@ -166,7 +166,7 @@ public class NeuralNetwork {
                     float rotate = random.nextFloat(-0.4f,0.4f);
                     float x = random.nextFloat(-6,6);
                     float y = random.nextFloat(-6,6);
-                    float scale = random.nextFloat(1f,1.5f);
+                    float scale = random.nextFloat(0.8f,1.8f);
 
                     trainingImage.log(rotate,x,y,scale);
 

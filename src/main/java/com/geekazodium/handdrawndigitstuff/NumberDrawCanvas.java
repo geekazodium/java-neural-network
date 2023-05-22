@@ -87,7 +87,7 @@ public class NumberDrawCanvas extends JPanel implements MouseListener, MouseMoti
             for (int x = 0; x < 9; x++) {
                 int drawX = (int) brushX-4+x;
                 int drawY = (int) brushY-4+y;
-                increasePixel(drawX, drawY, (int) Math.max(0.7*(255-distanceTo(brushX,brushY,drawX,drawY)*128),0));
+                increasePixel(drawX, drawY, (int) Math.max(0.6*(255-distanceTo(brushX,brushY,drawX,drawY)*128),0));
             }
         }
     }
