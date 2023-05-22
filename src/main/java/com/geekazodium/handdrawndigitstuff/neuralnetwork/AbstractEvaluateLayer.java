@@ -55,6 +55,25 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
         }
     }
 
+
+    public float[][] trainingEvaluate(ActivationFunction activationFunction, float[] previousLayerNodes) {
+        float[] nodes = new float[this.nodeCount];
+        System.arraycopy(biases, 0, nodes, 0, biases.length);
+        int prevLayerCount = this.previousLayer.nodeCount;
+        for (int p = 0;p < prevLayerCount; p++){
+            for (int n = 0;n < this.nodeCount; n++){
+                float effect = previousLayerNodes[p];
+                effect*=this.weights[p+n*prevLayerCount];
+                nodes[n] += effect;
+            }
+        }
+        float[] preActivation = nodes.clone();
+        for (int i = 0; i < this.nodeCount; i++) {
+            nodes[i] = activationFunction.activation(nodes[i]);
+        }
+        return new float[][]{nodes, preActivation};
+    }
+
     public void enableTraining() {
         this.training = true;
     }
@@ -77,7 +96,21 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
     }
 
 
+    public float[] asyncGetWeightDerivatives(float[] nodeDerivatives,float[] prevLayerNodes) {
 
+        float[] weightDerivatives = new float[this.weights.length];
+
+        int prevLayerCount = this.previousLayer.nodeCount;
+
+        for (int p = 0;p < prevLayerCount; p++){
+            float prevNodeActivation = prevLayerNodes[p];
+            for (int n = 0;n < this.nodeCount; n++){// the previous node activation is the derivative of the weight to the value before activation f()
+                weightDerivatives[p+n*prevLayerCount] = nodeDerivatives[n]*prevNodeActivation; // chain rule
+            }
+        }
+
+        return weightDerivatives;
+    }
     public float[] getInputActivationDerivatives(float[] nodeDerivatives) {
 
         int prevLayerCount = this.previousLayer.nodeCount;
@@ -93,6 +126,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
 
         return activationDerivatives;
     }
+
 
     private int weightAccumulations = 0;
     private float[] weightAccumulator;

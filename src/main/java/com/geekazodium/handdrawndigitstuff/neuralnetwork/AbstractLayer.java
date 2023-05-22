@@ -8,6 +8,9 @@ public abstract class AbstractLayer {
         this.nodes = new float[nodes];
     }
 
-    public abstract void evaluate(ActivationFunction activationFunction);
+
+    public void evaluate(ActivationFunction activationFunction) {
+        throw new RuntimeException("can not call evaluate on AbstractLayer");
+    }
 
 }
