@@ -3,6 +3,9 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 public abstract class AbstractEvaluateLayer extends AbstractLayer{
     protected AbstractLayer previousLayer;
 
@@ -128,27 +131,40 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
     }
 
 
-    private int weightAccumulations = 0;
-    private float[] weightAccumulator;
+    private AtomicInteger weightAccumulations = new AtomicInteger(0);
+    private final AtomicBoolean writingToWeightAccumulator = new AtomicBoolean(false);
+    private volatile float[] weightAccumulator = null;
     public void accumulateWeightChanges(float[] weightChanges){
-        this.weightAccumulations++;
+        this.weightAccumulations.addAndGet(1);
+        while (writingToWeightAccumulator.get()){
+            Thread.onSpinWait();
+        }
+        writingToWeightAccumulator.set(true);
         if(this.weightAccumulator == null){
             this.weightAccumulator = new float[this.weights.length];
         }
         for (int i = 0; i < this.weightAccumulator.length; i++) {
             this.weightAccumulator[i] += weightChanges[i];
         }
+        writingToWeightAccumulator.set(false);
     }
-    private int biasAccumulations = 0;
-    private float[] biasAccumulator;
+
+    private AtomicInteger biasAccumulations = new AtomicInteger(0);
+    private final AtomicBoolean writingToBiasAccumulator = new AtomicBoolean(false);
+    private volatile float[] biasAccumulator;
     public void accumulateBiasChanges(float[] biasChanges){
-        this.biasAccumulations++;
+        this.biasAccumulations.addAndGet(1);
+        while (writingToBiasAccumulator.get()){
+            Thread.onSpinWait();
+        }
+        writingToBiasAccumulator.set(true);
         if(this.biasAccumulator== null){
             this.biasAccumulator = new float[this.biases.length];
         }
         for (int i = 0; i < this.biasAccumulator.length; i++) {
             this.biasAccumulator[i] += biasChanges[i];
         }
+        writingToBiasAccumulator.set(false);
     }
 
 
@@ -169,20 +185,26 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
     }
 
     public void pushWeightAccumulator() {
+        while (writingToWeightAccumulator.get()){
+            Thread.onSpinWait();
+        }
         for (int i = 0; i < this.weightAccumulator.length; i++) {
-            float changes = this.weightAccumulator[i]/((float) this.weightAccumulations);
+            float changes = this.weightAccumulator[i]/((float) this.weightAccumulations.get());
             this.weights[i] -= changes;
         }
-        this.weightAccumulations = 0;
+        this.weightAccumulations.set(0);
         this.weightAccumulator = null;
     }
 
     public void pushBiasesAccumulator(){
+        while (writingToBiasAccumulator.get()){
+            Thread.onSpinWait();
+        }
         for (int i = 0; i < this.biasAccumulator.length; i++) {
-            float changes = this.biasAccumulator[i]/((float) this.biasAccumulations);
+            float changes = this.biasAccumulator[i]/((float) this.biasAccumulations.get());
             this.biases[i] -= changes;
         }
-        this.biasAccumulations = 0;
+        this.biasAccumulations.set(0);
         this.biasAccumulator = null;
     }
 

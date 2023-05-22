@@ -7,6 +7,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
     public static final String SAVE_PATH = "Network-784-200-100-50-10.json";
@@ -117,9 +118,21 @@ public class NeuralNetwork {
     }
 
     public void batchMultithreaded(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
+        final int toComplete = trainingDataObjects.size();
+        final AtomicInteger completed = new AtomicInteger(0);
         trainingDataObjects.forEach(o -> {
-            this.backpropagateMultithreaded(o,inputFunction,costFunction,activationFunction);
+            Thread thread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    backpropagateMultithreaded(o,inputFunction,costFunction,activationFunction);
+                    completed.addAndGet(1);
+                }
+            });
+            thread.start();
         });
+        while (toComplete>completed.get()){
+            Thread.onSpinWait();
+        }
         for (AbstractLayer layer : this.layers) {
             if(!(layer instanceof AbstractEvaluateLayer evaluateLayer))continue;
             evaluateLayer.pushWeightAccumulator();
