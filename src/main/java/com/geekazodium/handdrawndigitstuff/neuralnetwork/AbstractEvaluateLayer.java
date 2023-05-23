@@ -6,13 +6,13 @@ import com.google.gson.JsonObject;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class AbstractEvaluateLayer extends AbstractLayer{
+public abstract class AbstractEvaluateLayer extends AbstractLayer implements NonInputLayer {
     protected AbstractLayer previousLayer;
 
     public boolean training = false;
     public float[] combinedInputs;
-    protected float[] weights;
-    protected float[] biases;
+    public float[] weights;
+    public float[] biases;
 
     public AbstractEvaluateLayer(int nodes) {
         super(nodes);
@@ -30,6 +30,10 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer{
     public void initBiases(){
         this.biases = new float[this.nodeCount];
         fillArrayWithRandomValues(this.biases);
+    }
+
+    public AbstractLayer getPreviousLayer(){
+        return previousLayer;
     }
 
     private void fillArrayWithRandomValues(float[] array){

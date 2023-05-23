@@ -1,25 +1,29 @@
-package com.geekazodium.handdrawndigitstuff.neuralnetwork;
+package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.Main;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.*;
 import com.google.gson.*;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class NeuralNetwork {
+public class ResidualNetwork {
     public static final String SAVE_PATH = "Network-784-200-100-50-10.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     private final AbstractLayer[] layers;
 
-    public NeuralNetwork(InputLayer inputLayer, HiddenLayer[] hiddenLayers, OutputLayer outputLayer){
+    public ResidualNetwork(InputLayer inputLayer, HiddenLayer[] hiddenLayers, OutputLayer outputLayer){
         this(inputLayer,hiddenLayers,outputLayer,false);
     }
 
-    public NeuralNetwork(InputLayer inputLayer, HiddenLayer[] hiddenLayers, OutputLayer outputLayer,boolean init){
+    public ResidualNetwork(InputLayer inputLayer, HiddenLayer[] hiddenLayers, OutputLayer outputLayer,boolean init){
         this.inputLayer = inputLayer;
         this.outputLayer = outputLayer;
         this.layers = new AbstractLayer[hiddenLayers.length+2];
@@ -70,7 +74,7 @@ public class NeuralNetwork {
 
             // derivative for 2nd layer
             activationChanges = evaluateLayer.getInputActivationDerivatives(nodeDerivatives);
-            layer = evaluateLayer.previousLayer;
+            layer = evaluateLayer.getPreviousLayer();
         }
     }
     private void backpropagateMultithreaded(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
@@ -106,7 +110,7 @@ public class NeuralNetwork {
         }
     }
 
-    public void batch(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
+    public void batch(List<?> trainingDataObjects, InputFunction inputFunction, CostFunction costFunction, ActivationFunction activationFunction){
         trainingDataObjects.forEach(o -> {
             this.backpropagate(o,inputFunction,costFunction,activationFunction);
         });
@@ -238,7 +242,7 @@ public class NeuralNetwork {
         saveThread.start();
     }
 
-    public static NeuralNetwork deserialize(File file) throws IOException {
+    public static ResidualNetwork deserialize(File file) throws IOException {
         FileInputStream inputStream = new FileInputStream(file);
         byte[] b = inputStream.readAllBytes();
         inputStream.close();
@@ -274,7 +278,7 @@ public class NeuralNetwork {
         }
         HiddenLayer[] hiddenLayersArray = new HiddenLayer[hiddenLayers.size()];
         hiddenLayers.toArray(hiddenLayersArray);
-        return new NeuralNetwork(inLayer,hiddenLayersArray,outLayer,true);
+        return new ResidualNetwork(inLayer,hiddenLayersArray,outLayer,true);
     }
 
     private static void copyWeights(AbstractEvaluateLayer hiddenLayer, JsonArray array) {
@@ -305,12 +309,12 @@ public class NeuralNetwork {
         imageStream.close();
         labelStream.close();
         List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
-        NeuralNetwork neuralNetwork;
+        ResidualNetwork neuralNetwork;
         File networkFile = new File(SAVE_PATH);
         if (networkFile.exists()){
             neuralNetwork = deserialize(networkFile);
         }else {
-            neuralNetwork = new NeuralNetwork(
+            neuralNetwork = new ResidualNetwork(
                     new InputLayer(TrainingImage.width * TrainingImage.height),
                     new HiddenLayer[]{
                             new HiddenLayer(200),
@@ -339,7 +343,7 @@ public class NeuralNetwork {
                             random.nextFloat(-6,6),
                             random.nextFloat(0.8f,1.8f)
                     ),
-                    new NumberRecognitionCost(),
+                    new ResidualNetwork.NumberRecognitionCost(),
                     new LeakyRelU()
             );
             long now = System.currentTimeMillis();
