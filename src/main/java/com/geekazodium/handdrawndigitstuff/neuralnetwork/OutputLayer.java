@@ -10,10 +10,9 @@ public class OutputLayer extends AbstractEvaluateLayer{
         return "OutputLayer";
     }
 
-
-    public float[] getOutputs() {
-        float[] out = new float[this.nodeCount];
-        System.arraycopy(this.nodes,0,out,0,this.nodeCount);
-        return out;
-    }
+//    public float[] getOutputs() {
+//        float[] out = new float[this.nodeCount];
+//        System.arraycopy(this.nodes,0,out,0,this.nodeCount);
+//        return out;
+//    }
 }

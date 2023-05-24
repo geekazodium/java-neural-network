@@ -10,7 +10,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     protected AbstractLayer previousLayer;
 
     public boolean training = false;
-    public float[] combinedInputs;
+    //public float[] combinedInputs;
     public float[] weights;
     public float[] biases;
 
@@ -42,25 +42,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         }
     }
 
-    @Override
-    @Deprecated
-    public void evaluate(ActivationFunction activationFunction) {
-        System.arraycopy(biases, 0, this.nodes, 0, biases.length);
-        int prevLayerCount = this.previousLayer.nodeCount;
-        float[] prevLayerNodes = this.previousLayer.nodes;
-        for (int p = 0;p < prevLayerCount; p++){
-            for (int n = 0;n < this.nodeCount; n++){
-                float effect = prevLayerNodes[p];
-                effect*=this.weights[p+n*prevLayerCount];
-                this.nodes[n] += effect;
-            }
-        }
-        if(training){
-            this.combinedInputs = this.nodes.clone();
-        }
-        applyActivationFunction(this.nodes, activationFunction);
-    }
-
 
     @Override
     public float[][] trainingEvaluate(ActivationFunction activationFunction, float[] previousLayerNodes) {
@@ -83,15 +64,14 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         this.training = true;
     }
 
-    public float[] getWeightDerivatives(float[] nodeDerivatives) {
+    public float[] getWeightDerivatives(float[] nodeDerivatives,float[] previousLayerNodes) {
 
         float[] weightDerivatives = new float[this.weights.length];
 
         int prevLayerCount = this.previousLayer.nodeCount;
-        float[] prevLayerNodes = this.previousLayer.nodes;
 
         for (int p = 0;p < prevLayerCount; p++){
-            float prevNodeActivation = prevLayerNodes[p];
+            float prevNodeActivation = previousLayerNodes[p];
             for (int n = 0;n < this.nodeCount; n++){// the previous node activation is the derivative of the weight to the value before activation f()
                 weightDerivatives[p+n*prevLayerCount] = nodeDerivatives[n]*prevNodeActivation; // chain rule
             }
@@ -126,7 +106,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             for (int n = 0;n < this.nodeCount; n++){// the previous node activation is the derivative of the weight to the value before activation f()
                 activationDerivatives[p] += nodeDerivatives[n]*this.weights[p+n*prevLayerCount]; // chain rule
             }
-            //activationDerivatives[p] /= this.nodeCount;
         }
 
         return activationDerivatives;
