@@ -7,22 +7,25 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     private ActivationFunction activationFunction;
     private final ResidualMergeOperation residualMergeOperation;
     private AbstractLayer previousLayer;
-    private AbstractLayer nextLayer;
+    private AbstractLayer internalNextLayer;
 
     public ResidualBlockFrame(int outNodes, AbstractLayer[] internalLayers, ResidualMergeOperation residualMergeOperation) {
         super(outNodes);
         this.residualMergeOperation = residualMergeOperation;
         this.internalLayers = internalLayers;
         for (int i = 0; i < this.internalLayers.length; i++) {
+            AbstractLayer internalLayer = this.internalLayers[i];
             if(i+1 > this.internalLayers.length){
-                ((NonFinalLayer) this.internalLayers[i]).setNextLayer(residualMergeOperation);
+                ((NonFinalLayer) internalLayer).setNextLayer(residualMergeOperation);
+                this.residualMergeOperation.internalPreviousLayer = internalLayer;
             }else {
-                ((NonFinalLayer) this.internalLayers[i]).setNextLayer(this.internalLayers[i+1]);
+                ((NonFinalLayer) internalLayer).setNextLayer(this.internalLayers[i+1]);
             }
             if(i-1 < 0){
-                ((NonInputLayer) this.internalLayers[i]).setPreviousLayer(this);
+                ((NonInputLayer) internalLayer).setPreviousLayer(this);
+                this.internalNextLayer = internalLayer;
             }else {
-                ((NonInputLayer) this.internalLayers[i]).setPreviousLayer(this.internalLayers[i-1]);
+                ((NonInputLayer) internalLayer).setPreviousLayer(this.internalLayers[i-1]);
             }
         }
     }
@@ -46,12 +49,12 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     @Override
     public void setNextLayer(AbstractLayer layer) {
-        this.nextLayer = layer;
+        this.residualMergeOperation.nextLayer = layer;
     }
 
     @Override
     public AbstractLayer getNextLayer(){
-        return this.nextLayer;
+        return this.residualMergeOperation.nextLayer;
     }
 
     @Override
@@ -66,12 +69,27 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     }
 
     @Override
+    public float[] evaluate(float[] in) {
+        return this.internalLayers[0].evaluate(in);
+    }
+
+    /**
+     * @deprecated can not evaluate self on connector layer
+     * @param in
+     */
+    @Override
+    @Deprecated
+    public float[] evaluateSelf(float[] in) {
+        throw new RuntimeException("can not evaluate self on a connector");
+    }
+
+    @Override
     public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject) {
         return this.internalLayers[0].backpropagate(in,costFunction,trainingDataObject);
     }
 
     public static abstract class ResidualMergeOperation extends AbstractLayer implements EvaluateLayer,NonFinalLayer{
-        protected AbstractLayer previousLayer;
+        protected AbstractLayer internalPreviousLayer;
         protected AbstractLayer nextLayer;
         public ResidualMergeOperation(int nodes) {
             super(nodes);
@@ -89,12 +107,27 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
         @Override
         public void setPreviousLayer(AbstractLayer layer) {
-            this.previousLayer = layer;
+            throw new RuntimeException("can not modify internal layer links");
         }
 
         @Override
         public AbstractLayer getPreviousLayer() {
-            return this.previousLayer;
+            throw new RuntimeException("can not get internal layer links");
+        }
+
+        @Override
+        public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject) {
+            return new float[0];
+        }
+
+        @Override
+        public float[] evaluate(float[] in) {
+            return super.evaluate(in);
+        }
+
+        @Override
+        public float[] evaluateSelf(float[] in) {
+            return super.evaluateSelf(in);
         }
     }
 }
