@@ -14,4 +14,16 @@ public class InputLayer extends AbstractLayer implements NonFinalLayer{
     public void setInputs(float[] values){
         if (this.nodeCount >= 0) System.arraycopy(values, 0, this.nodes, 0, Math.min(values.length, this.nodeCount));
     }
+
+    @Override
+    public float[] evaluate(float[] in) {
+        float[] thisLayer = new float[this.nodeCount];
+        System.arraycopy(in,0,thisLayer,0,Math.min(this.nodeCount,in.length));
+        return this.nextLayer.evaluate(thisLayer);
+    }
+
+    @Override
+    public AbstractLayer getNextLayer(){
+        return this.nextLayer;
+    }
 }

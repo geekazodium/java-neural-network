@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class AbstractEvaluateLayer extends AbstractLayer implements NonInputLayer {
+public abstract class AbstractEvaluateLayer extends AbstractLayer implements EvaluateLayer {
     protected AbstractLayer previousLayer;
 
     public boolean training = false;
@@ -43,6 +43,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Non
     }
 
     @Override
+    @Deprecated
     public void evaluate(ActivationFunction activationFunction) {
         System.arraycopy(biases, 0, this.nodes, 0, biases.length);
         int prevLayerCount = this.previousLayer.nodeCount;
@@ -57,12 +58,11 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Non
         if(training){
             this.combinedInputs = this.nodes.clone();
         }
-        for (int i = 0; i < this.nodeCount; i++) {
-            this.nodes[i] = activationFunction.activation(this.nodes[i]);
-        }
+        applyActivationFunction(this.nodes, activationFunction);
     }
 
 
+    @Override
     public float[][] trainingEvaluate(ActivationFunction activationFunction, float[] previousLayerNodes) {
         float[] nodes = new float[this.nodeCount];
         System.arraycopy(biases, 0, nodes, 0, biases.length);
@@ -75,9 +75,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Non
             }
         }
         float[] preActivation = nodes.clone();
-        for (int i = 0; i < this.nodeCount; i++) {
-            nodes[i] = activationFunction.activation(nodes[i]);
-        }
+        applyActivationFunction(nodes, activationFunction);
         return new float[][]{nodes, preActivation};
     }
 
@@ -221,6 +219,33 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Non
         return object;
     }
 
+    @Override
+    public float[] evaluate(float[] prevLayer) {
+        float[] out = new float[this.nodeCount];
+        System.arraycopy(this.biases,0,out,0,this.nodeCount);
+        int prevLayerCount = this.previousLayer.nodeCount;
+        for (int p = 0;p < prevLayerCount; p++){
+            for (int n = 0;n < this.nodeCount; n++){
+                float effect = prevLayer[p];
+                effect*=this.weights[p+n*prevLayerCount];
+                out[n] += effect;
+            }
+        }
+        applyActivationFunction(out, activationFunction);
+        if(this instanceof NonFinalLayer thisLayer){
+            AbstractLayer nextLayer = thisLayer.getNextLayer();
+            return nextLayer.evaluate(out);
+        }else {
+            return out;
+        }
+    }
+
+    private void applyActivationFunction(float[] out, ActivationFunction activationFunction) {
+        for (int i = 0; i < this.nodeCount; i++) {
+            out[i] = activationFunction.activation(out[i]);
+        }
+    }
+
     private JsonArray serializeFloatArray(float[] array){
         JsonArray jsonArray = new JsonArray();
         for (float v : array) {
@@ -229,5 +254,5 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Non
         return jsonArray;
     }
 
-    protected abstract String name();
+    public abstract String name();
 }

@@ -8,12 +8,17 @@ public class HiddenLayer extends AbstractEvaluateLayer implements NonFinalLayer{
     }
 
     @Override
-    protected String name() {
+    public String name() {
         return "HiddenLayer";
     }
 
     @Override
     public void setNextLayer(AbstractLayer nextLayer){
         this.nextLayer = nextLayer;
+    }
+
+    @Override
+    public AbstractLayer getNextLayer(){
+        return this.nextLayer;
     }
 }

@@ -76,6 +76,7 @@ public class NeuralNetwork {
     private void backpropagateMultithreaded(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
         float[] in = inputFunction.createInputs(trainingDataObject);
         float[] layerOutput = in.clone();
+        this.inputLayer.evaluate(in);
         float[][] preActivations = new float[this.layers.length][];
         float[][] aftActivations = new float[this.layers.length][];
         aftActivations[0] = in.clone();

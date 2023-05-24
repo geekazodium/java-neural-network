@@ -6,7 +6,7 @@ public class OutputLayer extends AbstractEvaluateLayer{
     }
 
     @Override
-    protected String name() {
+    public String name() {
         return "OutputLayer";
     }
 
