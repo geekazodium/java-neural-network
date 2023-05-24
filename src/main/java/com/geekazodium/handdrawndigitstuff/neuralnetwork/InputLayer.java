@@ -23,6 +23,11 @@ public class InputLayer extends AbstractLayer implements NonFinalLayer{
     }
 
     @Override
+    public float[] backpropagate(float[] in, CostFunction costFunction,Object trainingDataObject) {
+        return nextLayer.backpropagate(in,costFunction,trainingDataObject);
+    }
+
+    @Override
     public AbstractLayer getNextLayer(){
         return this.nextLayer;
     }

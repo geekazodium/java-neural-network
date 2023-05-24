@@ -45,16 +45,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     @Override
     public float[][] trainingEvaluate(ActivationFunction activationFunction, float[] previousLayerNodes) {
-        float[] nodes = new float[this.nodeCount];
-        System.arraycopy(biases, 0, nodes, 0, biases.length);
-        int prevLayerCount = this.previousLayer.nodeCount;
-        for (int p = 0;p < prevLayerCount; p++){
-            for (int n = 0;n < this.nodeCount; n++){
-                float effect = previousLayerNodes[p];
-                effect*=this.weights[p+n*prevLayerCount];
-                nodes[n] += effect;
-            }
-        }
+        float[] nodes = getPreActivation(biases, biases.length, previousLayerNodes);
         float[] preActivation = nodes.clone();
         applyActivationFunction(nodes, activationFunction);
         return new float[][]{nodes, preActivation};
@@ -210,17 +201,22 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     }
     @Override
     public float[] evaluateSelf(float[] prevLayer) {
+        float[] out = getPreActivation(this.biases, this.nodeCount, prevLayer);
+        applyActivationFunction(out, activationFunction);
+        return out;
+    }
+
+    private float[] getPreActivation(float[] biases, int nodeCount, float[] prevLayer) {
         float[] out = new float[this.nodeCount];
-        System.arraycopy(this.biases,0,out,0,this.nodeCount);
+        System.arraycopy(biases, 0, out, 0, nodeCount);
         int prevLayerCount = this.previousLayer.nodeCount;
-        for (int p = 0;p < prevLayerCount; p++){
-            for (int n = 0;n < this.nodeCount; n++){
+        for (int p = 0; p < prevLayerCount; p++) {
+            for (int n = 0; n < this.nodeCount; n++) {
                 float effect = prevLayer[p];
-                effect*=this.weights[p+n*prevLayerCount];
+                effect *= this.weights[p + n * prevLayerCount];
                 out[n] += effect;
             }
         }
-        applyActivationFunction(out, activationFunction);
         return out;
     }
 
@@ -230,7 +226,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         }
     }
 
-    private JsonArray serializeFloatArray(float[] array){
+    private static JsonArray serializeFloatArray(float[] array){
         JsonArray jsonArray = new JsonArray();
         for (float v : array) {
             jsonArray.add(v);
@@ -241,6 +237,41 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     @Override
     public void setActivationFunction(ActivationFunction activationFunction) {
         this.activationFunction = activationFunction;
+    }
+
+    @Override
+    public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject) {
+        float[] preActivation = this.getPreActivation(this.biases,this.nodeCount,in);
+        float[] activation = preActivation.clone();
+        applyActivationFunction(activation, this.activationFunction);
+        float[] activationChanges;
+        if(this instanceof NonFinalLayer self){
+            if (!(self.getNextLayer() instanceof EvaluateLayer nextEvaluateLayer)) {
+                throw new RuntimeException("can't backpropagation to non-evaluate layer");
+            }
+            activationChanges = nextEvaluateLayer.backpropagate(activation,costFunction,trainingDataObject);
+        }else{
+            activationChanges = costFunction.derivative(activation,trainingDataObject);
+        }
+
+        float[] activationDerivatives = activationFunction.derivative(preActivation);
+        float[] nodeDerivatives = IndividualMultiply(activationChanges,activationDerivatives);
+
+        float[] weightChanges = this.asyncGetWeightDerivatives(nodeDerivatives,in);
+
+        this.accumulateWeightChanges(weightChanges);
+
+        this.accumulateBiasChanges(nodeDerivatives);
+
+        return this.getInputActivationDerivatives(nodeDerivatives);
+    }
+
+    private float[] IndividualMultiply(float[] a, float[] b) {
+        float[] der = new float[a.length];
+        for (int i = 0; i < a.length; i++) {
+            der[i] = a[i]*b[i];
+        }
+        return der;
     }
 
     public abstract String name();

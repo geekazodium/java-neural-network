@@ -7,4 +7,9 @@ public interface EvaluateLayer extends NonInputLayer{
 
     float[][] trainingEvaluate(ActivationFunction activationFunction, float[] previousLayerNodes);
 
+    float[] evaluate(float[] in);
+
+    float[] evaluateSelf(float[] in);
+
+    float[] backpropagate(float[] in,CostFunction costFunction,Object trainingDataObject);
 }

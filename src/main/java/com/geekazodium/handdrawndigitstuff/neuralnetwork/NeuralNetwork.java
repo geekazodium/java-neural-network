@@ -77,38 +77,40 @@ public class NeuralNetwork {
 //            layer = evaluateLayer.previousLayer;
 //        }
 //    }
-    private void backpropagateMultithreaded(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
+    private void backpropagateMultithreaded(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction){
         float[] in = inputFunction.createInputs(trainingDataObject);
-        float[] layerOutput = in.clone();
-        this.inputLayer.evaluate(in);
-        float[][] preActivations = new float[this.layers.length][];
-        float[][] aftActivations = new float[this.layers.length][];
-        aftActivations[0] = in.clone();
-        for (int i = 1; i < this.layers.length; i++) {
-            float[][] outputAndLayerPair = ((AbstractEvaluateLayer)this.layers[i]).trainingEvaluate(activationFunction,layerOutput);
-            layerOutput = outputAndLayerPair[0];
-            float[] preActivation = outputAndLayerPair[1];
-            float[] aftActivation = outputAndLayerPair[0];
-            preActivations[i] = preActivation;
-            aftActivations[i] = aftActivation;
-        }
-        float[] out = layerOutput.clone();
+        this.inputLayer.backpropagate(in,costFunction,trainingDataObject);
+//        float[] layerOutput = in.clone();
+//        this.inputLayer.evaluate(in);
+//        float[][] preActivations = new float[this.layers.length][];
+//        float[][] aftActivations = new float[this.layers.length][];
+//        aftActivations[0] = in.clone();
+//        for (int i = 1; i < this.layers.length; i++) {
+//            float[][] outputAndLayerPair = ((AbstractEvaluateLayer)this.layers[i]).trainingEvaluate(activationFunction,layerOutput);
+//            layerOutput = outputAndLayerPair[0];
+//            float[] preActivation = outputAndLayerPair[1];
+//            float[] aftActivation = outputAndLayerPair[0];
+//            preActivations[i] = preActivation;
+//            aftActivations[i] = aftActivation;
+//        }
+//        float[] out = layerOutput.clone();
+//
+//        float[] activationChanges = costFunction.derivative(out,trainingDataObject);
+//        for (int i = this.layers.length-1; i > 0;i--){
+//            AbstractEvaluateLayer evaluateLayer = (AbstractEvaluateLayer) layers[i];
+//
+//            float[] activationDerivatives = activationFunction.derivative(preActivations[i]);
+//            float[] nodeDerivatives = IndividualMultiply(activationChanges,activationDerivatives);
+//
+//            float[] weightChanges = evaluateLayer.asyncGetWeightDerivatives(nodeDerivatives,aftActivations[i-1]);
+//
+//            evaluateLayer.accumulateWeightChanges(weightChanges);
+//
+//            evaluateLayer.accumulateBiasChanges(nodeDerivatives);
+//
+//            activationChanges = evaluateLayer.getInputActivationDerivatives(nodeDerivatives);
+//        }
 
-        float[] activationChanges = costFunction.derivative(out,trainingDataObject);
-        for (int i = this.layers.length-1; i > 0;i--){
-            AbstractEvaluateLayer evaluateLayer = (AbstractEvaluateLayer) layers[i];
-
-            float[] activationDerivatives = activationFunction.derivative(preActivations[i]);
-            float[] nodeDerivatives = IndividualMultiply(activationChanges,activationDerivatives);
-
-            float[] weightChanges = evaluateLayer.asyncGetWeightDerivatives(nodeDerivatives,aftActivations[i-1]);
-
-            evaluateLayer.accumulateWeightChanges(weightChanges);
-
-            evaluateLayer.accumulateBiasChanges(nodeDerivatives);
-
-            activationChanges = evaluateLayer.getInputActivationDerivatives(nodeDerivatives);
-        }
     }
 //
 //    public void batch(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
@@ -122,14 +124,15 @@ public class NeuralNetwork {
 //        }
 //    }
 
-    public void batchMultithreaded(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
+    public void batchMultithreaded(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction){
         final int toComplete = trainingDataObjects.size();
         final AtomicInteger completed = new AtomicInteger(0);
+        //this.setActivationFunction(activationFunction);
         trainingDataObjects.forEach(o -> {
             Thread thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    backpropagateMultithreaded(o,inputFunction,costFunction,activationFunction);
+                    backpropagateMultithreaded(o,inputFunction,costFunction);
                     completed.addAndGet(1);
                 }
             });
@@ -345,8 +348,7 @@ public class NeuralNetwork {
                             random.nextFloat(-6,6),
                             random.nextFloat(0.8f,1.8f)
                     ),
-                    new NumberRecognitionCost(),
-                    new LeakyRelU()
+                    new NumberRecognitionCost()
             );
             long now = System.currentTimeMillis();
             System.out.println("batch #"+(i%50+1)+" completed in:"+(now-startTime)+"ms");

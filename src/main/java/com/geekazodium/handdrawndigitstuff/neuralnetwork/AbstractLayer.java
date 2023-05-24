@@ -15,4 +15,6 @@ public abstract class AbstractLayer {
     public float[] evaluateSelf(float[] in){
         return new float[0];
     }
+
+    public abstract float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject);
 }
