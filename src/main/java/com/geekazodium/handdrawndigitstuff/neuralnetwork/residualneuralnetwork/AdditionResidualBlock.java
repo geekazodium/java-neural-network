@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class AdditionResidualBlock extends AbstractLayer implements NonFinalLayer, EvaluateLayer{
     private final AbstractLayer[] internalLayers;
+    private ActivationFunction activationFunction;
     private AbstractLayer previousLayer;
     private AbstractLayer nextLayer;
 
@@ -27,7 +28,12 @@ public class AdditionResidualBlock extends AbstractLayer implements NonFinalLaye
         }
     }
 
+    /**
+     * @deprecated
+     * @param activationFunction
+     */
     @Override
+    @Deprecated
     public void evaluate(ActivationFunction activationFunction) {
         System.arraycopy(this.previousLayer.nodes,0,this.nodes,0,this.nodes.length);
         for (AbstractLayer abstractLayer : this.internalLayers) {
@@ -36,6 +42,15 @@ public class AdditionResidualBlock extends AbstractLayer implements NonFinalLaye
         AbstractLayer lastLayer = this.internalLayers[this.internalLayers.length-1];
         for (int i = 0; i < lastLayer.nodes.length; i++) {
             this.nodes[i]+=lastLayer.nodes[i];
+        }
+    }
+
+    @Override
+    public void setActivationFunction(ActivationFunction activationFunction) {
+        for (AbstractLayer internalLayer : this.internalLayers) {
+            if(internalLayer instanceof EvaluateLayer evaluateLayer){
+                evaluateLayer.setActivationFunction(activationFunction);
+            }
         }
     }
 
@@ -57,6 +72,19 @@ public class AdditionResidualBlock extends AbstractLayer implements NonFinalLaye
 //        }
 //        return new float[][]{nodes, preActivation};
         throw new RuntimeException("training for residual blocks is incomplete");
+    }
+
+    @Override
+    public float[] evaluate(float[] in) {
+        float[] input = in.clone();
+        for (AbstractLayer abstractLayer : this.internalLayers) {
+            abstractLayer.evaluate(input);
+        }
+        AbstractLayer lastLayer = this.internalLayers[this.internalLayers.length-1];
+        for (int i = 0; i < lastLayer.nodes.length; i++) {
+            input[i]+=lastLayer.nodes[i];
+        }
+        return input;
     }
 
     //TODO MAKE BACKPROPAGATION SELF-CONTAINED TO ALLOW FOR DIFFERENT BACKPROPAGATION FUNCTIONS
@@ -82,11 +110,4 @@ public class AdditionResidualBlock extends AbstractLayer implements NonFinalLaye
         this.previousLayer = layer;
     }
 
-    public void accumulateWeightChanges(float[] weightChanges,int layer){
-        ((AbstractEvaluateLayer) this.internalLayers[layer]).accumulateWeightChanges(weightChanges);
-    }
-
-    public void accumulateBiasChanges(float[] biasChanges,int layer){
-        ((AbstractEvaluateLayer) this.internalLayers[layer]).accumulateBiasChanges(biasChanges);
-    }
 }

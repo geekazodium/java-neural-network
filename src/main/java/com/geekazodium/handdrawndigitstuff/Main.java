@@ -57,6 +57,7 @@ public class Main {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        neuralNetwork.setActivationFunction(new LeakyRelU());
 
         running = true;
         appWindow.paint(appWindow.getGraphics());
@@ -71,7 +72,7 @@ public class Main {
                 for (int i = 0; i < input.content.length; i++) {
                     in[i] = input.content[i]/256f;
                 }
-                float[] out = neuralNetwork.evaluate(in,new LeakyRelU());
+                float[] out = neuralNetwork.evaluate(in);
                 float highestVal = 0.1f;
                 int highestIndex = -1;
                 for (int number = 0; number < out.length; number++) {

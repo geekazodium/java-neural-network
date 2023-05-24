@@ -4,6 +4,7 @@ public interface EvaluateLayer extends NonInputLayer{
     String name();
 
     void evaluate(ActivationFunction activationFunction);
+    void setActivationFunction(ActivationFunction activationFunction);
 
     float[][] trainingEvaluate(ActivationFunction activationFunction, float[] previousLayerNodes);
 }

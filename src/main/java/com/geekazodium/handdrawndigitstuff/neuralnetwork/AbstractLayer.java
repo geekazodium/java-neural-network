@@ -24,7 +24,7 @@ public abstract class AbstractLayer {
         return new float[0];
     }
 
-    public void useActivationFunction(ActivationFunction activationFunction){
-        this.activationFunction = activationFunction;
+    public float[] evaluateSelf(float[] in){
+        return new float[0];
     }
 }

@@ -41,17 +41,21 @@ public class NeuralNetwork {
         }
     }
 
-    public float[] evaluate(float[] inputs,ActivationFunction activationFunction){
-        this.inputLayer.setInputs(inputs);
-        for (int i = 1; i < this.layers.length; i++) {
-            this.layers[i].evaluate(activationFunction);
+    public float[] evaluate(float[] inputs){
+        return this.inputLayer.evaluate(inputs);
+    }
+
+    public void setActivationFunction(ActivationFunction activationFunction){
+        for (AbstractLayer layer : this.layers) {
+            if(layer instanceof EvaluateLayer evaluateLayer){
+                evaluateLayer.setActivationFunction(activationFunction);
+            }
         }
-        return this.outputLayer.getOutputs();
     }
 
     private void backpropagate(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
         float[] in = inputFunction.createInputs(trainingDataObject);
-        float[] out = evaluate(in,activationFunction);
+        float[] out = evaluate(in);
         //float[] cost = costFunction.cost(out,trainingDataObject);
 
         AbstractLayer layer = this.outputLayer;
@@ -323,6 +327,7 @@ public class NeuralNetwork {
         }
 
         neuralNetwork.enableTraining();
+        neuralNetwork.setActivationFunction(new LeakyRelU());
 
         int trainingSetSize = 6000;
         int batchSize = 1000;
@@ -360,8 +365,7 @@ public class NeuralNetwork {
                     trainingImage.log(rotate,x,y,scale);
 
                     float[] out = neuralNetwork.evaluate(
-                            trainingImage.getDataTransformed(rotate,x,y,scale),
-                            new LeakyRelU()
+                            trainingImage.getDataTransformed(rotate,x,y,scale)
                     );
                     float highestVal = -100;
                     int highestIndex = -1;

@@ -133,7 +133,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     }
 
 
-    private AtomicInteger weightAccumulations = new AtomicInteger(0);
+    private final AtomicInteger weightAccumulations = new AtomicInteger(0);
     private final AtomicBoolean writingToWeightAccumulator = new AtomicBoolean(false);
     private volatile float[] weightAccumulator = null;
     public void accumulateWeightChanges(float[] weightChanges){
@@ -151,7 +151,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         writingToWeightAccumulator.set(false);
     }
 
-    private AtomicInteger biasAccumulations = new AtomicInteger(0);
+    private final AtomicInteger biasAccumulations = new AtomicInteger(0);
     private final AtomicBoolean writingToBiasAccumulator = new AtomicBoolean(false);
     private volatile float[] biasAccumulator;
     public void accumulateBiasChanges(float[] biasChanges){
@@ -221,6 +221,16 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     @Override
     public float[] evaluate(float[] prevLayer) {
+        float[] out = evaluateSelf(prevLayer);
+        if(this instanceof NonFinalLayer thisLayer){
+            AbstractLayer nextLayer = thisLayer.getNextLayer();
+            return nextLayer.evaluate(out);
+        }else {
+            return out;
+        }
+    }
+    @Override
+    public float[] evaluateSelf(float[] prevLayer) {
         float[] out = new float[this.nodeCount];
         System.arraycopy(this.biases,0,out,0,this.nodeCount);
         int prevLayerCount = this.previousLayer.nodeCount;
@@ -232,12 +242,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             }
         }
         applyActivationFunction(out, activationFunction);
-        if(this instanceof NonFinalLayer thisLayer){
-            AbstractLayer nextLayer = thisLayer.getNextLayer();
-            return nextLayer.evaluate(out);
-        }else {
-            return out;
-        }
+        return out;
     }
 
     private void applyActivationFunction(float[] out, ActivationFunction activationFunction) {
@@ -252,6 +257,11 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             jsonArray.add(v);
         }
         return jsonArray;
+    }
+
+    @Override
+    public void setActivationFunction(ActivationFunction activationFunction) {
+        this.activationFunction = activationFunction;
     }
 
     public abstract String name();
