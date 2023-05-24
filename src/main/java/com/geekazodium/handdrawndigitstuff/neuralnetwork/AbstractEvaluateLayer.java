@@ -8,9 +8,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AbstractEvaluateLayer extends AbstractLayer implements EvaluateLayer {
     protected AbstractLayer previousLayer;
-
-    public boolean training = false;
-    //public float[] combinedInputs;
     public float[] weights;
     public float[] biases;
 
@@ -40,19 +37,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         for (int i = 0; i <array.length; i++) {
             array[i] = (float) ((Math.random()*2d-1d)/10d);
         }
-    }
-
-
-    @Override
-    public float[][] trainingEvaluate(ActivationFunction activationFunction, float[] previousLayerNodes) {
-        float[] nodes = getPreActivation(biases, biases.length, previousLayerNodes);
-        float[] preActivation = nodes.clone();
-        applyActivationFunction(nodes, activationFunction);
-        return new float[][]{nodes, preActivation};
-    }
-
-    public void enableTraining() {
-        this.training = true;
     }
 
     public float[] getWeightDerivatives(float[] nodeDerivatives,float[] previousLayerNodes) {

@@ -5,8 +5,6 @@ public interface EvaluateLayer extends NonInputLayer{
 
     void setActivationFunction(ActivationFunction activationFunction);
 
-    float[][] trainingEvaluate(ActivationFunction activationFunction, float[] previousLayerNodes);
-
     float[] evaluate(float[] in);
 
     float[] evaluateSelf(float[] in);

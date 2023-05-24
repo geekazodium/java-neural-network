@@ -156,14 +156,6 @@ public class NeuralNetwork {
         return der;
     }
 
-    public void enableTraining(){
-        for (int i = 1; i < this.layers.length; i++) {
-            if(!(this.layers[i] instanceof AbstractEvaluateLayer evaluateLayer))continue;
-            evaluateLayer.enableTraining();
-        }
-    }
-
-
     public static class NumberRecognitionCost implements CostFunction {
         @Override
         public float[] cost(float[] outs, Object trainingDataObj){
@@ -329,13 +321,13 @@ public class NeuralNetwork {
             );
         }
 
-        neuralNetwork.enableTraining();
         neuralNetwork.setActivationFunction(new LeakyRelU());
 
         int trainingSetSize = 6000;
         int batchSize = 1000;
         Random random = new Random();
 
+        NumberRecognitionCost costFunction = new NumberRecognitionCost();
         for (int i = 0; i < 1000; i++) {
             int start = random.nextInt(trainingSetSize);
 
@@ -348,7 +340,7 @@ public class NeuralNetwork {
                             random.nextFloat(-6,6),
                             random.nextFloat(0.8f,1.8f)
                     ),
-                    new NumberRecognitionCost()
+                    costFunction
             );
             long now = System.currentTimeMillis();
             System.out.println("batch #"+(i%50+1)+" completed in:"+(now-startTime)+"ms");
