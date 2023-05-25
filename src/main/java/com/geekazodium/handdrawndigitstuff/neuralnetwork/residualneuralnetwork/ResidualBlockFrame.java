@@ -58,7 +58,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     @Override
     public EvaluateLayer getNextLayer(){
-        return this.residualMergeOperation.nextLayer;
+        return (EvaluateLayer) this.internalNextLayer;
     }
 
     @Override
@@ -120,6 +120,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
             if(i-1 < 0){
                 ((NonInputLayer) internalLayer).setPreviousLayer(this);
                 this.setNextLayer((EvaluateLayer) internalLayer);
+                this.internalNextLayer = internalLayer;
             }else {
                 ((NonInputLayer) internalLayer).setPreviousLayer(this.internalLayers[i-1]);
             }

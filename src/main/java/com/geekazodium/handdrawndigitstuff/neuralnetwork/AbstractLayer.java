@@ -30,4 +30,9 @@ public abstract class AbstractLayer {
     public AbstractLayer getEnd(){
         return this;
     }
+
+    public void printStructure(){
+        System.out.println(this.nodeCount +" "+ this.getClass().getName());
+        if(this instanceof NonFinalLayer nonFinalLayer) ((AbstractLayer) nonFinalLayer.getNextLayer()).printStructure();
+    }
 }

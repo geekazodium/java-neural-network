@@ -29,6 +29,7 @@ public class NeuralNetwork {
         this.layers[this.layers.length-1] = this.outputLayer;
         System.arraycopy(internalLayers, 0, this.layers, 1, internalLayers.length);
         initLayers(init);
+        this.inputLayer.printStructure();
     }
 
     private void initLayers(boolean init) {
