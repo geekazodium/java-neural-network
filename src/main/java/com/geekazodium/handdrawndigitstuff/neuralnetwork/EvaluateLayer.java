@@ -5,9 +5,13 @@ public interface EvaluateLayer extends NonInputLayer{
 
     void setActivationFunction(ActivationFunction activationFunction);
 
-    float[] evaluate(float[] in);
+    float[] evaluate(float[] in, Object[] args);
 
-    float[] evaluateSelf(float[] in);
+    float[] evaluateSelf(float[] in, Object[] args);
 
-    float[] backpropagate(float[] in,CostFunction costFunction,Object trainingDataObject);
+    float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject, Object[] args);
+
+    float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject);
+
+    void init();
 }

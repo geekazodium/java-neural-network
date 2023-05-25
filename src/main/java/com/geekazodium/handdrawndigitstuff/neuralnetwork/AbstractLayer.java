@@ -8,13 +8,22 @@ public abstract class AbstractLayer {
         this.nodeCount = nodes;
     }
 
-    public float[] evaluate(float[] in){
+    public float[] evaluate(float[] in, Object[] args){
+        return new float[0];
+    }
+
+    public float[] evaluateSelf(float[] in, Object[] args){
         return new float[0];
     }
 
     public float[] evaluateSelf(float[] in){
-        return new float[0];
+        return evaluateSelf(in,null);
     }
 
-    public abstract float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject);
+    public abstract float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject, Object[] args);
+
+
+    public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject){
+        return backpropagate(in,costFunction,trainingDataObject,null);
+    }
 }

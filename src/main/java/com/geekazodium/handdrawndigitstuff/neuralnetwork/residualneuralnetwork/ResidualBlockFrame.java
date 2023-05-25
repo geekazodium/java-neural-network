@@ -9,21 +9,21 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     private AbstractLayer previousLayer;
     private AbstractLayer internalNextLayer;
 
-    public ResidualBlockFrame(int outNodes, AbstractLayer[] internalLayers, ResidualMergeOperation residualMergeOperation) {
-        super(outNodes);
+    public ResidualBlockFrame(int inNodes, AbstractLayer[] internalLayers, ResidualMergeOperation residualMergeOperation) {
+        super(inNodes);
         this.residualMergeOperation = residualMergeOperation;
         this.internalLayers = internalLayers;
         for (int i = 0; i < this.internalLayers.length; i++) {
             AbstractLayer internalLayer = this.internalLayers[i];
-            if(i+1 > this.internalLayers.length){
+            if(i+1 > this.internalLayers.length-1){
                 ((NonFinalLayer) internalLayer).setNextLayer(residualMergeOperation);
                 this.residualMergeOperation.internalPreviousLayer = internalLayer;
             }else {
-                ((NonFinalLayer) internalLayer).setNextLayer(this.internalLayers[i+1]);
+                ((NonFinalLayer) internalLayer).setNextLayer((EvaluateLayer) this.internalLayers[i+1]);
             }
             if(i-1 < 0){
                 ((NonInputLayer) internalLayer).setPreviousLayer(this);
-                this.internalNextLayer = internalLayer;
+                this.setNextLayer((EvaluateLayer) internalLayer);
             }else {
                 ((NonInputLayer) internalLayer).setPreviousLayer(this.internalLayers[i-1]);
             }
@@ -48,18 +48,18 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     }
 
     @Override
-    public void setNextLayer(AbstractLayer layer) {
+    public void setNextLayer(EvaluateLayer layer) {
         this.residualMergeOperation.nextLayer = layer;
     }
 
     @Override
-    public AbstractLayer getNextLayer(){
+    public EvaluateLayer getNextLayer(){
         return this.residualMergeOperation.nextLayer;
     }
 
     @Override
     public void setPreviousLayer(AbstractLayer layer) {
-        if(previousLayer.nodeCount!=this.nodeCount)throw new RuntimeException("layer before residual block must have the same amount of neurons as residual block");
+        if(layer.nodeCount!=this.nodeCount)throw new RuntimeException("layer before residual block must have the same amount of neurons as residual block");
         this.previousLayer = layer;
     }
 
@@ -69,39 +69,47 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     }
 
     @Override
-    public float[] evaluate(float[] in) {
-        return this.internalLayers[0].evaluate(in);
+    public float[] evaluate(float[] in, Object[] args) {
+        return this.internalLayers[0].evaluate(in, new Object[]{in,args});
     }
 
     /**
-     * @deprecated can not evaluate self on connector layer
      * @param in
+     * @param args
+     * @deprecated can not evaluate self on connector layer
      */
     @Override
     @Deprecated
-    public float[] evaluateSelf(float[] in) {
+    public float[] evaluateSelf(float[] in, Object[] args) {
         throw new RuntimeException("can not evaluate self on a connector");
     }
 
     @Override
-    public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject) {
-        return this.internalLayers[0].backpropagate(in,costFunction,trainingDataObject);
+    public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject, Object[] args) {
+        return this.internalLayers[0].backpropagate(in,costFunction,trainingDataObject,new Object[]{in,args});
+    }
+
+    @Override
+    public void init() {
+        for (AbstractLayer internalLayer : this.internalLayers) {
+            ((EvaluateLayer) internalLayer).init();
+        }
     }
 
     public static abstract class ResidualMergeOperation extends AbstractLayer implements EvaluateLayer,NonFinalLayer{
         protected AbstractLayer internalPreviousLayer;
-        protected AbstractLayer nextLayer;
+        protected EvaluateLayer nextLayer;
         public ResidualMergeOperation(int nodes) {
             super(nodes);
         }
 
         @Override
-        public void setNextLayer(AbstractLayer layer) {
+        public void setNextLayer(EvaluateLayer layer) {
             this.nextLayer = layer;
         }
 
         @Override
-        public AbstractLayer getNextLayer(){
+        public EvaluateLayer getNextLayer(){
             return this.nextLayer;
         }
 
@@ -116,18 +124,28 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         }
 
         @Override
-        public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject) {
-            return new float[0];
+        public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject, Object[] args) {
+            float[] blockOuts = evaluateSelf(in, args);
+            return this.trim(nextLayer.backpropagate(blockOuts,costFunction,trainingDataObject,(Object[]) args[1]));
         }
 
         @Override
-        public float[] evaluate(float[] in) {
-            return super.evaluate(in);
+        public float[] evaluate(float[] in, Object[] args) {
+            float[] blockOuts = evaluateSelf(in, args);
+            return nextLayer.evaluate(blockOuts, ((Object[]) args[1]));
         }
 
         @Override
-        public float[] evaluateSelf(float[] in) {
-            return super.evaluateSelf(in);
+        public void init() {
+
         }
+
+        public float[] evaluateSelf(float[] in, Object[] args){
+            return this.merge(in, (float[]) args[0]);
+        }
+
+        public abstract float[] merge(float[] lastLayer,float[] in);
+
+        public abstract float[] trim(float[] activationChanges);
     }
 }

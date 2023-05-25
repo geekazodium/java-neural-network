@@ -174,17 +174,17 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     }
 
     @Override
-    public float[] evaluate(float[] prevLayer) {
-        float[] out = evaluateSelf(prevLayer);
+    public float[] evaluate(float[] prevLayer, Object[] args) {
+        float[] out = evaluateSelf(prevLayer, args);
         if(this instanceof NonFinalLayer thisLayer){
-            AbstractLayer nextLayer = thisLayer.getNextLayer();
-            return nextLayer.evaluate(out);
+            EvaluateLayer nextLayer = thisLayer.getNextLayer();
+            return nextLayer.evaluate(out, args);
         }else {
             return out;
         }
     }
     @Override
-    public float[] evaluateSelf(float[] prevLayer) {
+    public float[] evaluateSelf(float[] prevLayer, Object[] args) {
         float[] out = getPreActivation(this.biases, this.nodeCount, prevLayer);
         applyActivationFunction(out, activationFunction);
         return out;
@@ -224,16 +224,14 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     }
 
     @Override
-    public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject) {
+    public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject, Object[] args) {
         float[] preActivation = this.getPreActivation(this.biases,this.nodeCount,in);
         float[] activation = preActivation.clone();
         applyActivationFunction(activation, this.activationFunction);
         float[] activationChanges;
         if(this instanceof NonFinalLayer self){
-            if (!(self.getNextLayer() instanceof EvaluateLayer nextEvaluateLayer)) {
-                throw new RuntimeException("can't backpropagation to non-evaluate layer");
-            }
-            activationChanges = nextEvaluateLayer.backpropagate(activation,costFunction,trainingDataObject);
+            EvaluateLayer nextEvaluateLayer = self.getNextLayer();
+            activationChanges = nextEvaluateLayer.backpropagate(activation,costFunction,trainingDataObject,args);
         }else{
             activationChanges = costFunction.derivative(activation,trainingDataObject);
         }
@@ -256,6 +254,12 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             der[i] = a[i]*b[i];
         }
         return der;
+    }
+
+    @Override
+    public void init() {
+        this.initBiases();
+        this.initWeights();
     }
 
     public abstract String name();

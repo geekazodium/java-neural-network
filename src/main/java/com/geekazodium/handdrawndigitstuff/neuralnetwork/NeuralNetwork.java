@@ -1,6 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.Main;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualBlockFrame;
 import com.google.gson.*;
 
 import java.io.*;
@@ -15,34 +16,33 @@ public class NeuralNetwork {
     private final InputLayer inputLayer;
     private final AbstractLayer[] layers;
 
-    public NeuralNetwork(InputLayer inputLayer, HiddenLayer[] hiddenLayers, OutputLayer outputLayer){
-        this(inputLayer,hiddenLayers,outputLayer,false);
+    public NeuralNetwork(InputLayer inputLayer, EvaluateLayer[] internalLayers, OutputLayer outputLayer){
+        this(inputLayer,internalLayers,outputLayer,false);
     }
 
-    public NeuralNetwork(InputLayer inputLayer, HiddenLayer[] hiddenLayers, OutputLayer outputLayer,boolean init){
+    public NeuralNetwork(InputLayer inputLayer, EvaluateLayer[] internalLayers, OutputLayer outputLayer, boolean init){
         this.inputLayer = inputLayer;
         this.outputLayer = outputLayer;
-        this.layers = new AbstractLayer[hiddenLayers.length+2];
+        this.layers = new AbstractLayer[internalLayers.length+2];
         this.layers[0] = this.inputLayer;
         this.layers[this.layers.length-1] = this.outputLayer;
-        System.arraycopy(hiddenLayers, 0, this.layers, 1, hiddenLayers.length);
+        System.arraycopy(internalLayers, 0, this.layers, 1, internalLayers.length);
         initLayers(init);
     }
 
     private void initLayers(boolean init) {
         for (int i = 0; i < this.layers.length-1; i++) {
             NonFinalLayer layer = (NonFinalLayer) this.layers[i];
-            AbstractEvaluateLayer next = (AbstractEvaluateLayer) this.layers[i + 1];
+            EvaluateLayer next = (EvaluateLayer) this.layers[i + 1];
             next.setPreviousLayer((AbstractLayer) layer);
             layer.setNextLayer(next);
             if(init) continue;
-            next.initBiases();
-            next.initWeights();
+            next.init();
         }
     }
 
     public float[] evaluate(float[] inputs){
-        return this.inputLayer.evaluate(inputs);
+        return this.inputLayer.evaluate(inputs, null);
     }
 
     public void setActivationFunction(ActivationFunction activationFunction){
@@ -53,81 +53,14 @@ public class NeuralNetwork {
         }
     }
 
-//    private void backpropagate(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
-//        float[] in = inputFunction.createInputs(trainingDataObject);
-//        float[] out = evaluate(in);
-//        //float[] cost = costFunction.cost(out,trainingDataObject);
-//
-//        AbstractLayer layer = this.outputLayer;
-//        float[] activationChanges = costFunction.derivative(out,trainingDataObject);
-//        while (layer instanceof AbstractEvaluateLayer){
-//            AbstractEvaluateLayer evaluateLayer = (AbstractEvaluateLayer) layer;
-//            // compute derivatives specific to out layer
-//            float[] activationDerivatives = activationFunction.derivative(evaluateLayer.combinedInputs);
-//            float[] nodeDerivatives = IndividualMultiply(activationChanges,activationDerivatives);
-//
-//            // changes biases for out layer
-//            evaluateLayer.accumulateBiasChanges(nodeDerivatives);
-//            // changes for out layer
-//            float[] weightChanges = evaluateLayer.getWeightDerivatives(nodeDerivatives,this);
-//            evaluateLayer.accumulateWeightChanges(weightChanges);
-//
-//            // derivative for 2nd layer
-//            activationChanges = evaluateLayer.getInputActivationDerivatives(nodeDerivatives);
-//            layer = evaluateLayer.previousLayer;
-//        }
-//    }
     private void backpropagateMultithreaded(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction){
         float[] in = inputFunction.createInputs(trainingDataObject);
         this.inputLayer.backpropagate(in,costFunction,trainingDataObject);
-//        float[] layerOutput = in.clone();
-//        this.inputLayer.evaluate(in);
-//        float[][] preActivations = new float[this.layers.length][];
-//        float[][] aftActivations = new float[this.layers.length][];
-//        aftActivations[0] = in.clone();
-//        for (int i = 1; i < this.layers.length; i++) {
-//            float[][] outputAndLayerPair = ((AbstractEvaluateLayer)this.layers[i]).trainingEvaluate(activationFunction,layerOutput);
-//            layerOutput = outputAndLayerPair[0];
-//            float[] preActivation = outputAndLayerPair[1];
-//            float[] aftActivation = outputAndLayerPair[0];
-//            preActivations[i] = preActivation;
-//            aftActivations[i] = aftActivation;
-//        }
-//        float[] out = layerOutput.clone();
-//
-//        float[] activationChanges = costFunction.derivative(out,trainingDataObject);
-//        for (int i = this.layers.length-1; i > 0;i--){
-//            AbstractEvaluateLayer evaluateLayer = (AbstractEvaluateLayer) layers[i];
-//
-//            float[] activationDerivatives = activationFunction.derivative(preActivations[i]);
-//            float[] nodeDerivatives = IndividualMultiply(activationChanges,activationDerivatives);
-//
-//            float[] weightChanges = evaluateLayer.asyncGetWeightDerivatives(nodeDerivatives,aftActivations[i-1]);
-//
-//            evaluateLayer.accumulateWeightChanges(weightChanges);
-//
-//            evaluateLayer.accumulateBiasChanges(nodeDerivatives);
-//
-//            activationChanges = evaluateLayer.getInputActivationDerivatives(nodeDerivatives);
-//        }
-
     }
-//
-//    public void batch(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction,ActivationFunction activationFunction){
-//        trainingDataObjects.forEach(o -> {
-//            this.backpropagate(o,inputFunction,costFunction,activationFunction);
-//        });
-//        for (AbstractLayer layer : this.layers) {
-//            if(!(layer instanceof AbstractEvaluateLayer evaluateLayer))continue;
-//            evaluateLayer.pushWeightAccumulator();
-//            evaluateLayer.pushBiasesAccumulator();
-//        }
-//    }
 
     public void batchMultithreaded(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction){
         final int toComplete = trainingDataObjects.size();
         final AtomicInteger completed = new AtomicInteger(0);
-        //this.setActivationFunction(activationFunction);
         trainingDataObjects.forEach(o -> {
             Thread thread = new Thread(new Runnable() {
                 @Override
@@ -307,19 +240,45 @@ public class NeuralNetwork {
         List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
         NeuralNetwork neuralNetwork;
         File networkFile = new File(SAVE_PATH);
-        if (networkFile.exists()){
-            neuralNetwork = deserialize(networkFile);
-        }else {
-            neuralNetwork = new NeuralNetwork(
-                    new InputLayer(TrainingImage.width * TrainingImage.height),
-                    new HiddenLayer[]{
-                            new HiddenLayer(200),
-                            new HiddenLayer(100),
-                            new HiddenLayer(50)
-                    },
-                    new OutputLayer(10)
-            );
-        }
+//        if (networkFile.exists()){
+//            neuralNetwork = deserialize(networkFile);
+//        }else {
+        neuralNetwork = new NeuralNetwork(
+                new InputLayer(TrainingImage.width * TrainingImage.height),
+                new EvaluateLayer[]{
+                        new ResidualBlockFrame(784, new AbstractLayer[]{
+                                new HiddenLayer(100), new HiddenLayer(50), new HiddenLayer(25)
+                        }, new ResidualBlockFrame.ResidualMergeOperation(784+25){
+                            @Override
+                            public float[] merge(float[] lastLayer, float[] in) {
+                                float[] out = new float[this.nodeCount];
+                                System.arraycopy(lastLayer,0,out,0,lastLayer.length);
+                                System.arraycopy(in,0,out,lastLayer.length,in.length);
+                                return out;
+                            }
+
+                            @Override
+                            public float[] trim(float[] activationChanges) {
+                                float[] out = new float[25];
+                                System.arraycopy(activationChanges,0,out,0,25);
+                                return out;
+                            }
+
+                            @Override
+                            public String name() {
+                                return "ResidualConcat";
+                            }
+
+                            @Override
+                            public void setActivationFunction(ActivationFunction activationFunction) {}
+                        }),
+                        new HiddenLayer(200),
+                        new HiddenLayer(100),
+                        new HiddenLayer(50)
+                },
+                new OutputLayer(10)
+        );
+//        }
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
 

@@ -1,7 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 public class HiddenLayer extends AbstractEvaluateLayer implements NonFinalLayer{
-    private AbstractLayer nextLayer;
+    private EvaluateLayer nextLayer;
 
     public HiddenLayer(int nodes) {
         super(nodes);
@@ -13,12 +13,12 @@ public class HiddenLayer extends AbstractEvaluateLayer implements NonFinalLayer{
     }
 
     @Override
-    public void setNextLayer(AbstractLayer nextLayer){
+    public void setNextLayer(EvaluateLayer nextLayer){
         this.nextLayer = nextLayer;
     }
 
     @Override
-    public AbstractLayer getNextLayer(){
+    public EvaluateLayer getNextLayer(){
         return this.nextLayer;
     }
 }
