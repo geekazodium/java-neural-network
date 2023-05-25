@@ -284,4 +284,9 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     }
 
     public abstract String name();
+
+    @Override
+    public AbstractLayer getEnd() {
+        return this;
+    }
 }

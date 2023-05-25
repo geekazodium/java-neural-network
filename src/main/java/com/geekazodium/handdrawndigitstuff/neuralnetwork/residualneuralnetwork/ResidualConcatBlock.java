@@ -14,10 +14,12 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
     }
 
     @Override
-    public float[] trim(float[] activationChanges) {
+    public float[][] trim(float[] activationChanges) {
         float[] out = new float[inputLength];
+        float[] leftover = new float[activationChanges.length-inputLength];
         System.arraycopy(activationChanges,0,out,0,inputLength);
-        return out;
+        System.arraycopy(activationChanges,this.inputLength,leftover,0,leftover.length);
+        return new float[][]{out, leftover};
     }
 
     @Override

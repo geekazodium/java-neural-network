@@ -26,4 +26,8 @@ public abstract class AbstractLayer {
     public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject){
         return backpropagate(in,costFunction,trainingDataObject,null);
     }
+
+    public AbstractLayer getEnd(){
+        return this;
+    }
 }

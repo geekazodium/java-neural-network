@@ -35,7 +35,7 @@ public class NeuralNetwork {
         for (int i = 0; i < this.layers.length-1; i++) {
             NonFinalLayer layer = (NonFinalLayer) this.layers[i];
             EvaluateLayer next = (EvaluateLayer) this.layers[i + 1];
-            next.setPreviousLayer((AbstractLayer) layer);
+            next.setPreviousLayer(((AbstractLayer)layer).getEnd());
             layer.setNextLayer(next);
             if(init) continue;
             next.init();
@@ -248,7 +248,7 @@ public class NeuralNetwork {
                                     new HiddenLayer(100),
                                     new HiddenLayer(50)
                             }, new ResidualConcatBlock(784,50)),
-                            new ResidualBlockFrame(784, new AbstractLayer[]{
+                            new ResidualBlockFrame(784+50, new AbstractLayer[]{
                                     new HiddenLayer(200),
                                     new HiddenLayer(100),
                                     new HiddenLayer(50)

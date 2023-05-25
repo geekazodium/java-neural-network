@@ -6,7 +6,6 @@ import com.google.gson.JsonObject;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -64,7 +63,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     @Override
     public void setPreviousLayer(AbstractLayer layer) {
-        if(layer.nodeCount!=this.nodeCount)throw new RuntimeException("layer before residual block must have the same amount of neurons as residual block");
+        //if(layer.nodeCount!=this.nodeCount)throw new RuntimeException("layer before residual block must have the same amount of neurons as residual block");
         this.previousLayer = layer;
     }
 
@@ -90,8 +89,22 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     }
 
     @Override
+    public AbstractLayer getEnd() {
+        return this.residualMergeOperation.getEnd();
+    }
+
+    @Override
     public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject, Object[] args) {
-        return this.internalLayers[0].backpropagate(in,costFunction,trainingDataObject,new Object[]{in,args});
+        GradientRemaining gradientRemaining = new GradientRemaining();
+        float[] gradient = this.internalLayers[0].backpropagate(in, costFunction, trainingDataObject, new Object[]{in, gradientRemaining, args});
+        for (int i = 0; i < gradient.length; i++) {
+            gradient[i] += gradientRemaining.remaining[i];
+        }
+        return gradient;
+    }
+
+    private static class GradientRemaining {
+        float[] remaining;
     }
 
     @Override
@@ -204,7 +217,9 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         @Override
         public float[] backpropagate(float[] in, CostFunction costFunction, Object trainingDataObject, Object[] args) {
             float[] blockOuts = evaluateSelf(in, args);
-            return this.trim(nextLayer.backpropagate(blockOuts,costFunction,trainingDataObject,(Object[]) args[1]));
+            float[][] split = this.trim(nextLayer.backpropagate(blockOuts, costFunction, trainingDataObject, (Object[]) args[2]));
+            ((GradientRemaining) args[1]).remaining = split[1];
+            return split[0];
         }
 
         @Override
@@ -229,6 +244,11 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
         public abstract float[] merge(float[] lastLayer,float[] in);
 
-        public abstract float[] trim(float[] activationChanges);
+        public abstract float[][] trim(float[] activationChanges);
+
+        @Override
+        public AbstractLayer getEnd() {
+            return this;
+        }
     }
 }
