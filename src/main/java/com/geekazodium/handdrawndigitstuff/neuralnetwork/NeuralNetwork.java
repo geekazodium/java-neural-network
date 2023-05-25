@@ -279,7 +279,7 @@ public class NeuralNetwork {
                             random.nextFloat(-0.4f,0.4f),
                             random.nextFloat(-6,6),
                             random.nextFloat(-6,6),
-                            random.nextFloat(0.8f,1.8f)
+                            random.nextFloat(0.75f,2f)
                     ),
                     costFunction
             );
@@ -295,7 +295,7 @@ public class NeuralNetwork {
                     float rotate = random.nextFloat(-0.4f,0.4f);
                     float x = random.nextFloat(-6,6);
                     float y = random.nextFloat(-6,6);
-                    float scale = random.nextFloat(0.8f,1.8f);
+                    float scale = random.nextFloat(0.75f,2f);
 
                     trainingImage.log(rotate,x,y,scale);
 
