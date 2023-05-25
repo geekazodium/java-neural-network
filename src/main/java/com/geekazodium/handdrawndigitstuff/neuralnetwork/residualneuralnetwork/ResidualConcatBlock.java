@@ -2,7 +2,11 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperation{
     public ResidualConcatBlock(int nodes,int input) {
-        super(nodes+input,input);
+        super(nodes,input);
+    }
+
+    public static ResidualConcatBlock instantiate(int nodes, int input){
+        return new ResidualConcatBlock(nodes+input,input);
     }
 
     @Override

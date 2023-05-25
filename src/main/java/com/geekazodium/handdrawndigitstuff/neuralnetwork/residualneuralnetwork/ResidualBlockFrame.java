@@ -163,7 +163,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
             merge = getMergeBlock(mergeType)
                     .getDeclaredConstructor(int.class,int.class)
                     .newInstance(
-                            object.get("mergeNodes").getAsInt()-object.get("mergeInputs").getAsInt(),
+                            object.get("mergeNodes").getAsInt(),
                             object.get("mergeInputs").getAsInt()
                     );
         } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
