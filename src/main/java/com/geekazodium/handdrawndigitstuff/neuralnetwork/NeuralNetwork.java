@@ -252,7 +252,7 @@ public class NeuralNetwork {
                                     new HiddenLayer(200),
                                     new HiddenLayer(100),
                                     new HiddenLayer(50)
-                            }, new ResidualConcatBlock(784+50,50)),
+                            }, new ResidualConcatBlock(784+50,50)),//TODO gradient is not passed through layer properly
                             new HiddenLayer(200),
                             new HiddenLayer(100),
                             new HiddenLayer(50)
