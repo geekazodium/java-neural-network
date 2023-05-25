@@ -183,7 +183,7 @@ public class NeuralNetwork {
 
         JsonArray evaluateLayers = object.get("evaluateLayers").getAsJsonArray();
 
-        List<HiddenLayer> hiddenLayers = new ArrayList<>();
+        List<EvaluateLayer> hiddenLayers = new ArrayList<>();
 
         OutputLayer outLayer = null;
 
@@ -193,9 +193,11 @@ public class NeuralNetwork {
                 hiddenLayers.add(hiddenLayer);
             }else if(layer instanceof OutputLayer outputLayer){
                 outLayer = outputLayer;
+            }else if(layer instanceof ResidualBlockFrame blockFrame){
+                hiddenLayers.add(blockFrame);
             }
         }
-        HiddenLayer[] hiddenLayersArray = new HiddenLayer[hiddenLayers.size()];
+        EvaluateLayer[] hiddenLayersArray = new EvaluateLayer[hiddenLayers.size()];
         hiddenLayers.toArray(hiddenLayersArray);
         return new NeuralNetwork(inLayer,hiddenLayersArray,outLayer,true);
     }
@@ -212,7 +214,7 @@ public class NeuralNetwork {
             abstractLayer = new OutputLayer(layerJson.get("nodes").getAsInt());
             abstractLayer.deserializeFromJson(layerJson);
         }else if(Objects.equals(type,"ResidualBlock")){
-            abstractLayer = new ResidualBlockFrame(layerJson.get("nodes").getAsInt(),null,null);
+            abstractLayer = new ResidualBlockFrame(layerJson.get("nodes").getAsInt());
             abstractLayer.deserializeFromJson(layerJson);
         }
         return abstractLayer;
@@ -242,10 +244,15 @@ public class NeuralNetwork {
                     new InputLayer(TrainingImage.width * TrainingImage.height),
                     new EvaluateLayer[]{
                             new ResidualBlockFrame(784, new AbstractLayer[]{
+                                    new HiddenLayer(200),
                                     new HiddenLayer(100),
-                                    new HiddenLayer(50),
-                                    new HiddenLayer(25)
-                            }, new ResidualConcatBlock(784,25)),
+                                    new HiddenLayer(50)
+                            }, new ResidualConcatBlock(784,50)),
+                            new ResidualBlockFrame(784, new AbstractLayer[]{
+                                    new HiddenLayer(200),
+                                    new HiddenLayer(100),
+                                    new HiddenLayer(50)
+                            }, new ResidualConcatBlock(784+50,50)),
                             new HiddenLayer(200),
                             new HiddenLayer(100),
                             new HiddenLayer(50)

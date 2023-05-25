@@ -1,10 +1,8 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperation{
-    private final int inputLength;
     public ResidualConcatBlock(int nodes,int input) {
-        super(nodes+input);
-        this.inputLength = input;
+        super(nodes+input,input);
     }
 
     @Override
@@ -26,5 +24,4 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
     public String name() {
         return "ResidualConcat";
     }
-}
 }

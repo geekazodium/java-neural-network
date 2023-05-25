@@ -53,7 +53,7 @@ public class Main {
 
         NeuralNetwork neuralNetwork;
         try {
-            neuralNetwork = NeuralNetwork.deserialize(new File("Network-784-200-100-50-10.json"));
+            neuralNetwork = NeuralNetwork.deserialize(new File("Deep_network.json"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
