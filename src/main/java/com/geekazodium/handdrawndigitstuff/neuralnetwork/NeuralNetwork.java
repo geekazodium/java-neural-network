@@ -2,6 +2,7 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.Main;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualBlockFrame;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualConcatBlock;
 import com.google.gson.*;
 
 import java.io.*;
@@ -11,7 +12,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "Network-784-200-100-50-10.json";
+    public static final String SAVE_PATH = "Deep_network.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     private final AbstractLayer[] layers;
@@ -148,7 +149,7 @@ public class NeuralNetwork {
         JsonArray evaluateLayers = new JsonArray();
 
         for (int i = 1; i < this.layers.length; i++) {
-            evaluateLayers.add(((AbstractEvaluateLayer)this.layers[i]).serializeToJson());
+            evaluateLayers.add(((SerializableToJsonLayer)this.layers[i]).serializeToJson());
         }
         object.add("evaluateLayers",evaluateLayers);
 
@@ -187,22 +188,11 @@ public class NeuralNetwork {
         OutputLayer outLayer = null;
 
         for (JsonElement evaluateLayer : evaluateLayers) {
-            JsonObject layerJson = evaluateLayer.getAsJsonObject();
-            String type = layerJson.get("type").getAsString();
-
-            if(Objects.equals(type, "HiddenLayer")){
-                HiddenLayer hiddenLayer = new HiddenLayer(layerJson.get("nodes").getAsInt());
-                JsonArray weights = layerJson.get("weights").getAsJsonArray();
-                copyWeights(hiddenLayer, weights);
-                JsonArray biases = layerJson.get("biases").getAsJsonArray();
-                copyBiases(hiddenLayer,biases);
+            AbstractLayer layer = (AbstractLayer) deserializeLayer(evaluateLayer);
+            if(layer instanceof HiddenLayer hiddenLayer){
                 hiddenLayers.add(hiddenLayer);
-            }else if(Objects.equals(type, "OutputLayer")){
-                outLayer = new OutputLayer(layerJson.get("nodes").getAsInt());
-                JsonArray weights = layerJson.get("weights").getAsJsonArray();
-                copyWeights(outLayer, weights);
-                JsonArray biases = layerJson.get("biases").getAsJsonArray();
-                copyBiases(outLayer,biases);
+            }else if(layer instanceof OutputLayer outputLayer){
+                outLayer = outputLayer;
             }
         }
         HiddenLayer[] hiddenLayersArray = new HiddenLayer[hiddenLayers.size()];
@@ -210,17 +200,22 @@ public class NeuralNetwork {
         return new NeuralNetwork(inLayer,hiddenLayersArray,outLayer,true);
     }
 
-    private static void copyWeights(AbstractEvaluateLayer hiddenLayer, JsonArray array) {
-        hiddenLayer.weights = new float[array.size()];
-        for (int i = 0; i < array.size(); i++) {
-            hiddenLayer.weights[i] = array.get(i).getAsFloat();
+    public static SerializableToJsonLayer deserializeLayer(JsonElement evaluateLayer){
+        JsonObject layerJson = evaluateLayer.getAsJsonObject();
+        String type = layerJson.get("type").getAsString();
+
+        SerializableToJsonLayer abstractLayer = null;
+        if(Objects.equals(type, "HiddenLayer")){
+            abstractLayer = new HiddenLayer(layerJson.get("nodes").getAsInt());
+            abstractLayer.deserializeFromJson(layerJson);
+        }else if(Objects.equals(type, "OutputLayer")){
+            abstractLayer = new OutputLayer(layerJson.get("nodes").getAsInt());
+            abstractLayer.deserializeFromJson(layerJson);
+        }else if(Objects.equals(type,"ResidualBlock")){
+            abstractLayer = new ResidualBlockFrame(layerJson.get("nodes").getAsInt(),null,null);
+            abstractLayer.deserializeFromJson(layerJson);
         }
-    }
-    private static void copyBiases(AbstractEvaluateLayer hiddenLayer, JsonArray array) {
-        hiddenLayer.biases = new float[array.size()];
-        for (int i = 0; i < array.size(); i++) {
-            hiddenLayer.biases[i] = array.get(i).getAsFloat();
-        }
+        return abstractLayer;
     }
 
     public static void main(String[] args) throws Exception {
@@ -240,45 +235,24 @@ public class NeuralNetwork {
         List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
         NeuralNetwork neuralNetwork;
         File networkFile = new File(SAVE_PATH);
-//        if (networkFile.exists()){
-//            neuralNetwork = deserialize(networkFile);
-//        }else {
-        neuralNetwork = new NeuralNetwork(
-                new InputLayer(TrainingImage.width * TrainingImage.height),
-                new EvaluateLayer[]{
-                        new ResidualBlockFrame(784, new AbstractLayer[]{
-                                new HiddenLayer(100), new HiddenLayer(50), new HiddenLayer(25)
-                        }, new ResidualBlockFrame.ResidualMergeOperation(784+25){
-                            @Override
-                            public float[] merge(float[] lastLayer, float[] in) {
-                                float[] out = new float[this.nodeCount];
-                                System.arraycopy(lastLayer,0,out,0,lastLayer.length);
-                                System.arraycopy(in,0,out,lastLayer.length,in.length);
-                                return out;
-                            }
-
-                            @Override
-                            public float[] trim(float[] activationChanges) {
-                                float[] out = new float[25];
-                                System.arraycopy(activationChanges,0,out,0,25);
-                                return out;
-                            }
-
-                            @Override
-                            public String name() {
-                                return "ResidualConcat";
-                            }
-
-                            @Override
-                            public void setActivationFunction(ActivationFunction activationFunction) {}
-                        }),
-                        new HiddenLayer(200),
-                        new HiddenLayer(100),
-                        new HiddenLayer(50)
-                },
-                new OutputLayer(10)
-        );
-//        }
+        if (networkFile.exists()){
+            neuralNetwork = deserialize(networkFile);
+        }else {
+            neuralNetwork = new NeuralNetwork(
+                    new InputLayer(TrainingImage.width * TrainingImage.height),
+                    new EvaluateLayer[]{
+                            new ResidualBlockFrame(784, new AbstractLayer[]{
+                                    new HiddenLayer(100),
+                                    new HiddenLayer(50),
+                                    new HiddenLayer(25)
+                            }, new ResidualConcatBlock(784,25)),
+                            new HiddenLayer(200),
+                            new HiddenLayer(100),
+                            new HiddenLayer(50)
+                    },
+                    new OutputLayer(10)
+            );
+        }
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
 

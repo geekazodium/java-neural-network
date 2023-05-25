@@ -1,8 +1,14 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
-public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, EvaluateLayer{
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
+public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, EvaluateLayer,SerializableToJsonLayer{
     private final AbstractLayer[] internalLayers;
     private ActivationFunction activationFunction;
     private final ResidualMergeOperation residualMergeOperation;
@@ -13,21 +19,6 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         super(inNodes);
         this.residualMergeOperation = residualMergeOperation;
         this.internalLayers = internalLayers;
-        for (int i = 0; i < this.internalLayers.length; i++) {
-            AbstractLayer internalLayer = this.internalLayers[i];
-            if(i+1 > this.internalLayers.length-1){
-                ((NonFinalLayer) internalLayer).setNextLayer(residualMergeOperation);
-                this.residualMergeOperation.internalPreviousLayer = internalLayer;
-            }else {
-                ((NonFinalLayer) internalLayer).setNextLayer((EvaluateLayer) this.internalLayers[i+1]);
-            }
-            if(i-1 < 0){
-                ((NonInputLayer) internalLayer).setPreviousLayer(this);
-                this.setNextLayer((EvaluateLayer) internalLayer);
-            }else {
-                ((NonInputLayer) internalLayer).setPreviousLayer(this.internalLayers[i-1]);
-            }
-        }
     }
 
     @Override
@@ -44,7 +35,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     @Override
     public String name() {
-        return "AddResidualBlock";
+        return "ResidualBlock";
     }
 
     @Override
@@ -91,9 +82,57 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     @Override
     public void init() {
+        for (int i = 0; i < this.internalLayers.length; i++) {
+            AbstractLayer internalLayer = this.internalLayers[i];
+            if(i+1 > this.internalLayers.length-1){
+                ((NonFinalLayer) internalLayer).setNextLayer(residualMergeOperation);
+                this.residualMergeOperation.internalPreviousLayer = internalLayer;
+            }else {
+                ((NonFinalLayer) internalLayer).setNextLayer((EvaluateLayer) this.internalLayers[i+1]);
+            }
+            if(i-1 < 0){
+                ((NonInputLayer) internalLayer).setPreviousLayer(this);
+                this.setNextLayer((EvaluateLayer) internalLayer);
+            }else {
+                ((NonInputLayer) internalLayer).setPreviousLayer(this.internalLayers[i-1]);
+            }
+        }
         for (AbstractLayer internalLayer : this.internalLayers) {
             ((EvaluateLayer) internalLayer).init();
         }
+    }
+
+    @Override
+    public JsonObject serializeToJson() {
+        JsonObject serialized = new JsonObject();
+        serialized.addProperty("type",this.name());
+        serialized.addProperty("nodes",this.nodeCount);
+        serialized.addProperty("mergeType",this.residualMergeOperation.getClass().getName());
+        JsonArray internalLayers = new JsonArray();
+        for (int i = 0; i < this.internalLayers.length; i++) {
+            SerializableToJsonLayer internalLayer = (SerializableToJsonLayer) this.internalLayers[i];
+            internalLayers.add(internalLayer.serializeToJson());
+        }
+        serialized.add("internalLayers",internalLayers);
+        return serialized;
+    }
+
+    @Override
+    public void deserializeFromJson(JsonObject object) {
+        JsonArray array = object.get("internalLayers").getAsJsonArray();
+        ArrayList<EvaluateLayer> internalLayers = new ArrayList<>();
+        array.forEach(jsonElement -> {
+            internalLayers.add((EvaluateLayer) NeuralNetwork.deserializeLayer(jsonElement));
+        });
+    }
+
+    private static final Map<String,Class<? extends ResidualMergeOperation>> mergeOperations = new HashMap<>();
+    static {
+        putMergeBlock(ResidualConcatBlock.class);
+    }
+
+    private static void putMergeBlock(Class<? extends ResidualMergeOperation> mergeType) {
+        mergeOperations.put(mergeType.getName(),mergeType);
     }
 
     public static abstract class ResidualMergeOperation extends AbstractLayer implements EvaluateLayer,NonFinalLayer{
@@ -137,6 +176,11 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
         @Override
         public void init() {
+
+        }
+
+        @Override
+        public void setActivationFunction(ActivationFunction activationFunction) {
 
         }
 

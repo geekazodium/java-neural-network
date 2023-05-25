@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class AbstractEvaluateLayer extends AbstractLayer implements EvaluateLayer {
+public abstract class AbstractEvaluateLayer extends AbstractLayer implements EvaluateLayer,SerializableToJsonLayer {
     protected AbstractLayer previousLayer;
     public float[] weights;
     public float[] biases;
@@ -171,6 +171,27 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         object.addProperty("type", this.name());
         object.addProperty("nodes", this.nodeCount);
         return object;
+    }
+
+    @Override
+    public void deserializeFromJson(JsonObject object) {
+        JsonArray weights = object.get("weights").getAsJsonArray();
+        copyWeights(this,weights);
+        JsonArray biases = object.get("biases").getAsJsonArray();
+        copyBiases(this,biases);
+    }
+
+    public static void copyWeights(AbstractEvaluateLayer hiddenLayer, JsonArray array) {
+        hiddenLayer.weights = new float[array.size()];
+        for (int i = 0; i < array.size(); i++) {
+            hiddenLayer.weights[i] = array.get(i).getAsFloat();
+        }
+    }
+    public static void copyBiases(AbstractEvaluateLayer hiddenLayer, JsonArray array) {
+        hiddenLayer.biases = new float[array.size()];
+        for (int i = 0; i < array.size(); i++) {
+            hiddenLayer.biases[i] = array.get(i).getAsFloat();
+        }
     }
 
     @Override
