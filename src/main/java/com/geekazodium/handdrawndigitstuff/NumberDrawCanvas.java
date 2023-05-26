@@ -63,7 +63,6 @@ public class NumberDrawCanvas extends JPanel implements MouseListener, MouseMoti
 
     @Override
     public void mouseClicked(MouseEvent e) {
-
     }
 
     float lastX = 0;

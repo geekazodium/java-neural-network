@@ -60,15 +60,21 @@ public class NeuralNetwork {
         this.inputLayer.backpropagate(in,costFunction,trainingDataObject);
     }
 
-    public void batchMultithreaded(List<?> trainingDataObjects,InputFunction inputFunction,CostFunction costFunction){
+    public void batchMultithreaded(List<?> trainingDataObjects, InputFunction inputFunction, CostFunction costFunction, int trainingThreadLimit){
         final int toComplete = trainingDataObjects.size();
         final AtomicInteger completed = new AtomicInteger(0);
+        final AtomicInteger active = new AtomicInteger(0);
         trainingDataObjects.forEach(o -> {
+            while (trainingThreadLimit<=active.get()){
+                Thread.onSpinWait();
+            }
+            active.addAndGet(1);
             Thread thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     backpropagateMultithreaded(o,inputFunction,costFunction);
                     completed.addAndGet(1);
+                    active.addAndGet(-1);
                 }
             });
             thread.start();
@@ -222,11 +228,10 @@ public class NeuralNetwork {
     }
 
     public static void main(String[] args) throws Exception {
-        Path basePath = Path.of(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-        Path resourcesPath = Path.of(basePath.getParent().getParent().getParent().toString() + File.separator + "resources" + File.separator + "main");
+        int trainingThreadLimit = 5;
 
-        String imagePath = resourcesPath+File.separator+"train-images.idx3-ubyte";
-        String labelPath = resourcesPath+File.separator+"train-labels.idx1-ubyte";
+        String imagePath = "dataset"+File.separator+"train-images.idx3-ubyte";
+        String labelPath = "dataset"+File.separator+"train-labels.idx1-ubyte";
         File imageFile = new File(imagePath);
         File labelFile = new File(labelPath);
         FileInputStream imageStream = new FileInputStream(imageFile);
@@ -281,7 +286,8 @@ public class NeuralNetwork {
                             random.nextFloat(-6,6),
                             random.nextFloat(0.75f,2f)
                     ),
-                    costFunction
+                    costFunction,
+                    trainingThreadLimit
             );
             long now = System.currentTimeMillis();
             System.out.println("batch #"+(i%50+1)+" completed in:"+(now-startTime)+"ms");
