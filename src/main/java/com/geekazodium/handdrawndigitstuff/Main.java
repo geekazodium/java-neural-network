@@ -65,7 +65,7 @@ public class Main {
 
         NeuralNetwork neuralNetwork;
         try {
-            neuralNetwork = NeuralNetwork.deserialize(new File("Deep_network.json"));
+            neuralNetwork = NeuralNetwork.deserialize(new File("Deep_network_new.json"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
