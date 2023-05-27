@@ -240,7 +240,10 @@ public class NeuralNetwork {
         byte[] labelStreamBytes = labelStream.readAllBytes();
         imageStream.close();
         labelStream.close();
+
         List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
+        trainingData.addAll(loadInputFails());
+
         NeuralNetwork neuralNetwork;
         File networkFile = new File(SAVE_PATH);
         if (networkFile.exists()){
@@ -269,17 +272,19 @@ public class NeuralNetwork {
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
 
-        int trainingSetSize = 6000;
+        int trainingSetSize = trainingData.size();
+        System.out.println(trainingSetSize);
         int batchSize = 1000;
         Random random = new Random();
 
         NumberRecognitionCost costFunction = new NumberRecognitionCost();
-        for (int i = 0; i < 1000; i++) {
-            int start = random.nextInt(trainingSetSize);
+        for (int i = 0; i < 10000; i++) {
+            int start = random.nextInt(trainingSetSize-1);
+            System.out.println(start+","+(start+batchSize));
 
             long startTime = System.currentTimeMillis();
             neuralNetwork.batchMultithreaded(
-                    trainingData.subList(start,start+batchSize),
+                    subListOf(trainingData,start,start+batchSize),
                     trainingDataObject -> ((TrainingImage) trainingDataObject).getDataTransformed(
                             random.nextFloat(-0.4f,0.4f),
                             random.nextFloat(-6,6),
@@ -327,6 +332,34 @@ public class NeuralNetwork {
                 System.out.println("test accuracy:"+(float)correct/(float)total);
             }
         }
+    }
+
+    private static List<TrainingImage> subListOf(List<TrainingImage> trainingData, int start, int end) {
+        List<TrainingImage> section = new ArrayList<>(end-start);
+        int trainingDataSize = trainingData.size();
+        for (int i = start; i < end; i++) {
+            section.add(trainingData.get(i%trainingDataSize));
+        }
+        return section;
+    }
+
+    private static List<TrainingImage> loadInputFails() throws IOException {
+        List<TrainingImage> inputFails = new ArrayList<>();
+        File trainingDataFolder = new File("dataset");
+        for (File file : trainingDataFolder.listFiles()) {
+            if(!(file.getName().contains("inputFail")))continue;
+            FileInputStream inputStream = new FileInputStream(file);
+            byte[] bytes = inputStream.readAllBytes();
+            inputStream.close();
+
+            byte[] image = new byte[TrainingImage.width*TrainingImage.height];
+            for (int i = 1; i < bytes.length; i++) {
+                image[i-1] = bytes[i];
+            }
+            TrainingImage trainingImage = new TrainingImage(image,bytes[0]);
+            inputFails.add(trainingImage);
+        }
+        return inputFails;
     }
 
 }
