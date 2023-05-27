@@ -12,7 +12,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "Deep_network.json";
+    public static final String SAVE_PATH = "Deep_network_new.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     private final AbstractLayer[] layers;
@@ -61,6 +61,7 @@ public class NeuralNetwork {
     }
 
     public void batchMultithreaded(List<?> trainingDataObjects, InputFunction inputFunction, CostFunction costFunction, int trainingThreadLimit){
+        this.batchCount++;
         final int toComplete = trainingDataObjects.size();
         final AtomicInteger completed = new AtomicInteger(0);
         final AtomicInteger active = new AtomicInteger(0);
@@ -144,15 +145,18 @@ public class NeuralNetwork {
         return images;
     }
 
+    private int batchCount = 0;
+
     public void serialize(File file){
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         JsonObject object = new JsonObject();
+
+        object.addProperty("batchCount",batchCount);
 
         JsonObject inputLayer = new JsonObject();
         object.add("inputLayer",inputLayer);
 
         inputLayer.addProperty("nodes",this.inputLayer.nodeCount);
-
         JsonArray evaluateLayers = new JsonArray();
 
         for (int i = 1; i < this.layers.length; i++) {
@@ -206,7 +210,11 @@ public class NeuralNetwork {
         }
         EvaluateLayer[] hiddenLayersArray = new EvaluateLayer[hiddenLayers.size()];
         hiddenLayers.toArray(hiddenLayersArray);
-        return new NeuralNetwork(inLayer,hiddenLayersArray,outLayer,true);
+        NeuralNetwork network = new NeuralNetwork(inLayer, hiddenLayersArray, outLayer, true);
+
+        JsonElement count = object.get("batchCount");
+        network.batchCount = (count==null)?0:count.getAsInt();
+        return network;
     }
 
     public static SerializableToJsonLayer deserializeLayer(JsonElement evaluateLayer){
@@ -256,12 +264,12 @@ public class NeuralNetwork {
                                     new HiddenLayer(200),
                                     new HiddenLayer(100),
                                     new HiddenLayer(50)
-                            }, new ResidualConcatBlock(784,50)),
+                            }, ResidualConcatBlock.instantiate(784,50)),
                             new ResidualBlockFrame(784+50, new AbstractLayer[]{
                                     new HiddenLayer(200),
                                     new HiddenLayer(100),
                                     new HiddenLayer(50)
-                            }, new ResidualConcatBlock(784+50,50)),//TODO gradient is not passed through layer properly
+                            }, ResidualConcatBlock.instantiate(784+50,50)),//TODO gradient is not passed through layer properly
                             new HiddenLayer(200),
                             new HiddenLayer(100),
                             new HiddenLayer(50)
@@ -329,7 +337,7 @@ public class NeuralNetwork {
                     System.out.println("the neural network said:"+highestIndex);
                     System.out.println(Arrays.toString(out));
                 }
-                System.out.println("test accuracy:"+(float)correct/(float)total);
+                System.out.println("batch #"+neuralNetwork.batchCount+" test accuracy:"+(float)correct/(float)total);
             }
         }
     }
