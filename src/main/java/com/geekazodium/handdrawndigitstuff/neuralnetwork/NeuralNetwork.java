@@ -297,7 +297,7 @@ public class NeuralNetwork {
                             random.nextFloat(-0.4f,0.4f),
                             random.nextFloat(-6,6),
                             random.nextFloat(-6,6),
-                            random.nextFloat(0.75f,2f)
+                            random.nextFloat(0.85f,2f)
                     ),
                     costFunction,
                     trainingThreadLimit
