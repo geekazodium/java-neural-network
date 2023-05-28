@@ -1,6 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.Main;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualAddBlock;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualBlockFrame;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualConcatBlock;
 import com.google.gson.*;
@@ -12,7 +13,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "Deep_network_new.json";
+    public static final String SAVE_PATH = "Deep_network_add.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     private final AbstractLayer[] layers;
@@ -269,7 +270,7 @@ public class NeuralNetwork {
                                     new HiddenLayer(200),
                                     new HiddenLayer(100),
                                     new HiddenLayer(50)
-                            }, ResidualConcatBlock.instantiate(784+50,50)),//TODO gradient is not passed through layer properly
+                            }, new ResidualAddBlock(784+50,50,0)),//TODO gradient is not passed through layer properly
                             new HiddenLayer(200),
                             new HiddenLayer(100),
                             new HiddenLayer(50)

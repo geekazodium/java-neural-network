@@ -135,9 +135,8 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         JsonObject serialized = new JsonObject();
         serialized.addProperty("type",this.name());
         serialized.addProperty("nodes",this.nodeCount);
-        serialized.addProperty("mergeType",this.residualMergeOperation.getClass().getPackageName());
-        serialized.addProperty("mergeNodes",this.residualMergeOperation.nodeCount);
-        serialized.addProperty("mergeInputs",this.residualMergeOperation.inputLength);
+        serialized.addProperty("mergeType",this.residualMergeOperation.getClass().getName());
+        this.residualMergeOperation.serialize(serialized);
         JsonArray internalLayers = new JsonArray();
         for (int i = 0; i < this.internalLayers.length; i++) {
             SerializableToJsonLayer internalLayer = (SerializableToJsonLayer) this.internalLayers[i];
@@ -161,11 +160,8 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         ResidualMergeOperation merge;
         try {
             merge = getMergeBlock(mergeType)
-                    .getDeclaredConstructor(int.class,int.class)
-                    .newInstance(
-                            object.get("mergeNodes").getAsInt(),
-                            object.get("mergeInputs").getAsInt()
-                    );
+                    .getDeclaredConstructor(JsonObject.class)
+                    .newInstance(object);
         } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
@@ -176,10 +172,11 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     private static final Map<String,Class<? extends ResidualMergeOperation>> mergeOperations = new HashMap<>();
     static {
         putMergeBlock(ResidualConcatBlock.class);
+        putMergeBlock(ResidualAddBlock.class);
     }
 
     private static void putMergeBlock(Class<? extends ResidualMergeOperation> mergeType) {
-        mergeOperations.put(mergeType.getPackageName(),mergeType);
+        mergeOperations.put(mergeType.getName(),mergeType);
     }
 
     public static Class<? extends ResidualMergeOperation> getMergeBlock(String mergeType){
@@ -193,6 +190,11 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         public ResidualMergeOperation(int nodes,int inputLength) {
             super(nodes);
             this.inputLength = inputLength;
+        }
+
+        public ResidualMergeOperation(JsonObject object){
+            super(object.get("mergeNodes").getAsInt());
+            this.inputLength = object.get("mergeInputs").getAsInt();
         }
 
         @Override
@@ -250,6 +252,11 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         @Override
         public AbstractLayer getEnd() {
             return this;
+        }
+
+        public void serialize(JsonObject serialized) {
+            serialized.addProperty("mergeNodes",this.nodeCount);
+            serialized.addProperty("mergeInputs",this.inputLength);
         }
     }
 }

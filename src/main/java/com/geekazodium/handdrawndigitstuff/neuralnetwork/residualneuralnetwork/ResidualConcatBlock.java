@@ -1,8 +1,14 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
+import com.google.gson.JsonObject;
+
 public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperation{
     public ResidualConcatBlock(int nodes,int input) {
         super(nodes,input);
+    }
+
+    public ResidualConcatBlock(JsonObject object){
+        super(object);
     }
 
     public static ResidualConcatBlock instantiate(int nodes, int input){
