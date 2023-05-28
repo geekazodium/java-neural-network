@@ -285,10 +285,11 @@ public class NeuralNetwork {
         System.out.println(trainingSetSize);
         int batchSize = 1000;
         Random random = new Random();
+        int indexCounter = 0;
 
         NumberRecognitionCost costFunction = new NumberRecognitionCost();
         for (int i = 0; i < 10000; i++) {
-            int start = random.nextInt(trainingSetSize-1);
+            int start = indexCounter;
             System.out.println(start+","+(start+batchSize));
 
             long startTime = System.currentTimeMillis();
@@ -305,6 +306,9 @@ public class NeuralNetwork {
             );
             long now = System.currentTimeMillis();
             System.out.println("batch #"+(i%50+1)+" completed in:"+(now-startTime)+"ms");
+
+            indexCounter += batchSize;
+            indexCounter %= trainingData.size();
 
             if(i%50 == 49){
                 neuralNetwork.serialize(new File(SAVE_PATH));
