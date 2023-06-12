@@ -210,7 +210,7 @@ public class NeuralNetwork {
     }
 
     public static void main(String[] args) throws Exception {
-        int trainingThreadLimit = 2;
+        int trainingThreadLimit = 3;
 
         int inputSize = 128;
         TextSection.setInputLength(inputSize);
@@ -229,25 +229,27 @@ public class NeuralNetwork {
                     new InputLayer(inputNeurons),
                     new EvaluateLayer[]{
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
-                                    new HiddenLayer(200),
-                                    new HiddenLayer(100),
-                                    new HiddenLayer(50)
-                            }, ResidualConcatBlock.instantiate(inputNeurons,50)),
-                            new ResidualBlockFrame(inputNeurons+50, new AbstractLayer[]{
-                                    new HiddenLayer(200),
-                                    new HiddenLayer(100),
-                                    new HiddenLayer(50)
-                            }, new ResidualAddBlock(inputNeurons+50,50,0)),
-                            new HiddenLayer(200),
-                            new HiddenLayer(100),
-                            new HiddenLayer(50)
+                                    new HiddenLayer(512),
+                                    new HiddenLayer(256),
+                                    new HiddenLayer(128)
+                            }, ResidualConcatBlock.instantiate(inputNeurons,128)),
+                            new ResidualBlockFrame(inputNeurons+128, new AbstractLayer[]{
+                                    new HiddenLayer(512),
+                                    new HiddenLayer(256),
+                                    new HiddenLayer(64)
+                            }, new ResidualAddBlock(inputNeurons+128,64,0)),
+                            new HiddenLayer(1024*2),
+                            new HiddenLayer((512+256)*2),
+                            new HiddenLayer(512*2)
                     },
                     new OutputLayer(outputNeurons)
             );
         }
 
+        neuralNetwork.serialize(new File(SAVE_PATH));
+
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(0.7f);
+        neuralNetwork.setLearnRate(0.75f);
 
         TextSection section = trainingData.getExample();
         section.log();
@@ -275,7 +277,7 @@ public class NeuralNetwork {
     }
 
     private static void testExample(TrainingText trainingData, NeuralNetwork neuralNetwork) {
-        StringBuilder s = new StringBuilder("Art is a");
+        StringBuilder s = new StringBuilder("why are you tired?");
         for (int c = 0; c < 128; c++) {
             float[] outs = neuralNetwork.evaluate(TextSection.chunkString(s.toString(), trainingData.characterSet, trainingData.inverseCharset));
             int index = 0;
