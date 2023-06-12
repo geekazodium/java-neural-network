@@ -7,6 +7,8 @@ import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.R
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TrainingText;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TextSection;
 import com.google.gson.*;
+import org.lwjgl.opencl.CL;
+import org.lwjgl.opencl.CLNativeKernel;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -210,7 +212,7 @@ public class NeuralNetwork {
     }
 
     public static void main(String[] args) throws Exception {
-        int trainingThreadLimit = 3;
+        int trainingThreadLimit = 4;
 
         int inputSize = 128;
         TextSection.setInputLength(inputSize);
@@ -249,12 +251,12 @@ public class NeuralNetwork {
         neuralNetwork.serialize(new File(SAVE_PATH));
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(0.75f);
+        neuralNetwork.setLearnRate(1f);
 
         TextSection section = trainingData.getExample();
         section.log();
 
-        int batchSize = 10;
+        int batchSize = 40;
         testExample(trainingData, neuralNetwork);
 
         for (int batchCounter = 0; batchCounter < 10000; batchCounter++) {
@@ -366,7 +368,8 @@ public class NeuralNetwork {
         @Override
         public void trainOnData(Object trainingDataObject, NeuralNetwork neuralNetwork) {
             TextSection textSection = (TextSection) trainingDataObject;
-            for (int i = 0; i < textSection.section.size()-1; i++) {
+            for (int i = 0; i < TextSection.inputLength-1; i++) {
+                System.out.println(i);
                 float[] in = this.inputFunction.createInputs(trainingDataObject,i);
                 TokenPredictionCost cost = new TokenPredictionCost();
                 cost.setNext(textSection.section.get(i));

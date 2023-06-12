@@ -13,7 +13,7 @@ public class TrainingText {
     public TrainingText(String s, String charSet, int chunkSize) {
         char[] charArray = s.toCharArray();
         int count = 0;
-        for(char c: charSet.toCharArray()){
+        for(char c: ("\r"+charSet).toCharArray()){
             if(!characterSet.containsKey(c)) {
                 characterSet.put(c, count);
                 inverseCharset.put(count, c);
