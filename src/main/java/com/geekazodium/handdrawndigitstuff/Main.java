@@ -58,10 +58,10 @@ public class Main {
         panel.setBounds(MIN_HEIGHT,MIN_HEIGHT/2-100,300,100);
         appWindow.setLayout(null);
 
-        JTextField textField = new CorrectionTextField(input);
-        JButton button = new CorrectionButton(input,textField);
-        panel.add(button);
-        appWindow.add(textField);
+//        JTextField textField = new CorrectionTextField(input);
+//        JButton button = new CorrectionButton(input,textField);
+//        panel.add(button);
+//        appWindow.add(textField);
 
         NeuralNetwork neuralNetwork;
         try {

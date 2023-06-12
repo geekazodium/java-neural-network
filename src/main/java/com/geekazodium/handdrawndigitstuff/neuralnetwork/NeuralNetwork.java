@@ -1,22 +1,24 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
-import com.geekazodium.handdrawndigitstuff.Main;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions.TokenPredictionCost;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualAddBlock;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualBlockFrame;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualConcatBlock;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TrainingText;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TextSection;
 import com.google.gson.*;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "Deep_network_add.json";
+    public static final String SAVE_PATH = "Deep_Tired_Network.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     private final AbstractLayer[] layers;
+    private float learnRate;
 
     public NeuralNetwork(InputLayer inputLayer, EvaluateLayer[] internalLayers, OutputLayer outputLayer){
         this(inputLayer,internalLayers,outputLayer,false);
@@ -56,16 +58,17 @@ public class NeuralNetwork {
         }
     }
 
-    private void backpropagateMultithreaded(Object trainingDataObject,InputFunction inputFunction,CostFunction costFunction){
-        float[] in = inputFunction.createInputs(trainingDataObject);
-        this.inputLayer.backpropagate(in,costFunction,trainingDataObject);
-    }
+//    private  trainOnData(Object trainingDataObject){
+//        float[] in = inputFunction.createInputs(trainingDataObject);
+//        this.inputLayer.backpropagate(in,costFunction,trainingDataObject);
+//    }
 
-    public void batchMultithreaded(List<?> trainingDataObjects, InputFunction inputFunction, CostFunction costFunction, int trainingThreadLimit){
+    public void batchMultithreaded(List<?> trainingDataObjects,TrainingFunction function, int trainingThreadLimit){
         this.batchCount++;
         final int toComplete = trainingDataObjects.size();
         final AtomicInteger completed = new AtomicInteger(0);
         final AtomicInteger active = new AtomicInteger(0);
+        final NeuralNetwork thisNetwork = this;
         trainingDataObjects.forEach(o -> {
             while (trainingThreadLimit<=active.get()){
                 Thread.onSpinWait();
@@ -74,7 +77,7 @@ public class NeuralNetwork {
             Thread thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    backpropagateMultithreaded(o,inputFunction,costFunction);
+                    function.trainOnData(o,thisNetwork);
                     completed.addAndGet(1);
                     active.addAndGet(-1);
                 }
@@ -86,8 +89,8 @@ public class NeuralNetwork {
         }
         for (AbstractLayer layer : this.layers) {
             if(!(layer instanceof AbstractEvaluateLayer evaluateLayer))continue;
-            evaluateLayer.pushWeightAccumulator();
-            evaluateLayer.pushBiasesAccumulator();
+            evaluateLayer.pushWeightAccumulator(this.learnRate);
+            evaluateLayer.pushBiasesAccumulator(this.learnRate);
         }
     }
 
@@ -97,36 +100,6 @@ public class NeuralNetwork {
             der[i] = a[i]*b[i];
         }
         return der;
-    }
-
-    public static class NumberRecognitionCost implements CostFunction {
-        @Override
-        public float[] cost(float[] outs, Object trainingDataObj){
-            TrainingImage image = ((TrainingImage) trainingDataObj);
-            float[] costs = new float[10];
-            for (int i = 0; i < outs.length; i++) {
-                if(i == image.label){
-                    costs[i]=(outs[i]-1)*(outs[i]-1);
-                }else {
-                    costs[i]=(outs[i]-0)*(outs[i]-0);
-                }
-            }
-            return costs;
-        }
-
-        @Override
-        public float[] derivative(float[] outs, Object trainingDataObj) {
-            TrainingImage image = ((TrainingImage) trainingDataObj);
-            float[] derivatives = new float[10];
-            for (int i = 0; i < outs.length; i++) {
-                if(i == image.label){
-                    derivatives[i]=2*(outs[i]-1);
-                }else {
-                    derivatives[i]=2*(outs[i]-0);
-                }
-            }
-            return derivatives;
-        }
     }
 
     protected static List<TrainingImage> loadTrainingData(byte[] imageFileBytes, byte[] labelStreamBytes){
@@ -237,8 +210,105 @@ public class NeuralNetwork {
     }
 
     public static void main(String[] args) throws Exception {
-        int trainingThreadLimit = 5;
+        int trainingThreadLimit = 2;
 
+        int inputSize = 128;
+        TextSection.setInputLength(inputSize);
+
+        TrainingText trainingData = loadTrainingText(inputSize);
+
+        int inputNeurons = trainingData.characterSet.size()*inputSize;
+        int outputNeurons = trainingData.characterSet.size();
+
+        NeuralNetwork neuralNetwork;
+        File networkFile = new File(SAVE_PATH);
+        if (networkFile.exists()){
+            neuralNetwork = deserialize(networkFile);
+        }else {
+            neuralNetwork = new NeuralNetwork(
+                    new InputLayer(inputNeurons),
+                    new EvaluateLayer[]{
+                            new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
+                                    new HiddenLayer(200),
+                                    new HiddenLayer(100),
+                                    new HiddenLayer(50)
+                            }, ResidualConcatBlock.instantiate(inputNeurons,50)),
+                            new ResidualBlockFrame(inputNeurons+50, new AbstractLayer[]{
+                                    new HiddenLayer(200),
+                                    new HiddenLayer(100),
+                                    new HiddenLayer(50)
+                            }, new ResidualAddBlock(inputNeurons+50,50,0)),
+                            new HiddenLayer(200),
+                            new HiddenLayer(100),
+                            new HiddenLayer(50)
+                    },
+                    new OutputLayer(outputNeurons)
+            );
+        }
+
+        neuralNetwork.setActivationFunction(new LeakyRelU());
+        neuralNetwork.setLearnRate(0.7f);
+
+        TextSection section = trainingData.getExample();
+        section.log();
+
+        int batchSize = 10;
+        testExample(trainingData, neuralNetwork);
+
+        for (int batchCounter = 0; batchCounter < 10000; batchCounter++) {
+            long startTime = System.currentTimeMillis();
+            neuralNetwork.batchMultithreaded(
+                    trainingData.getExamples(batchSize),
+                    new TokenPredictionTrainingFunction(),
+                    trainingThreadLimit
+            );
+            long now = System.currentTimeMillis();
+            System.out.println("batch #"+(batchCounter+1)+" completed in:"+(now-startTime)+"ms");
+
+            neuralNetwork.serialize(new File(SAVE_PATH));
+            testExample(trainingData,neuralNetwork);
+        }
+    }
+
+    private void setLearnRate(float learnRate) {
+        this.learnRate = learnRate;
+    }
+
+    private static void testExample(TrainingText trainingData, NeuralNetwork neuralNetwork) {
+        StringBuilder s = new StringBuilder("Art is a");
+        for (int c = 0; c < 128; c++) {
+            float[] outs = neuralNetwork.evaluate(TextSection.chunkString(s.toString(), trainingData.characterSet, trainingData.inverseCharset));
+            int index = 0;
+            float highest = -10;
+            for (int i = 0; i < outs.length; i++) {
+                if (outs[i] > highest) {
+                    highest = outs[i];
+                    index = i;
+                }
+            }
+            System.out.println(Arrays.toString(outs));
+            s.append(trainingData.inverseCharset.get(index));
+            System.out.println(s.toString());
+        }
+    }
+
+    private static TrainingText loadTrainingText(int chunkSize) throws IOException {
+        String textPath = "datasetText"+File.separator+"dataset.txt";
+        String charsetPath = "datasetText"+File.separator+"charset.txt";
+        byte[] input = getBytes(textPath);
+        byte[] charset = getBytes(charsetPath);
+        TrainingText trainingText = new TrainingText(new String(input, StandardCharsets.UTF_8),new String(charset,StandardCharsets.UTF_8), chunkSize);
+        return trainingText;
+    }
+
+    private static byte[] getBytes(String textPath) throws IOException {
+        FileInputStream charSetStream = new FileInputStream(textPath);
+        byte[] input = charSetStream.readAllBytes();
+        charSetStream.close();
+        return input;
+    }
+
+    private static List<TrainingImage> loadTrainingImages() throws IOException {
         String imagePath = "dataset"+File.separator+"train-images.idx3-ubyte";
         String labelPath = "dataset"+File.separator+"train-labels.idx1-ubyte";
         File imageFile = new File(imagePath);
@@ -252,99 +322,7 @@ public class NeuralNetwork {
 
         List<TrainingImage> trainingData = loadTrainingData(imageFileBytes,labelStreamBytes);
         trainingData.addAll(loadInputFails());
-
-        NeuralNetwork neuralNetwork;
-        File networkFile = new File(SAVE_PATH);
-        if (networkFile.exists()){
-            neuralNetwork = deserialize(networkFile);
-        }else {
-            neuralNetwork = new NeuralNetwork(
-                    new InputLayer(TrainingImage.width * TrainingImage.height),
-                    new EvaluateLayer[]{
-                            new ResidualBlockFrame(784, new AbstractLayer[]{
-                                    new HiddenLayer(200),
-                                    new HiddenLayer(100),
-                                    new HiddenLayer(50)
-                            }, ResidualConcatBlock.instantiate(784,50)),
-                            new ResidualBlockFrame(784+50, new AbstractLayer[]{
-                                    new HiddenLayer(200),
-                                    new HiddenLayer(100),
-                                    new HiddenLayer(50)
-                            }, new ResidualAddBlock(784+50,50,0)),//TODO gradient is not passed through layer properly
-                            new HiddenLayer(200),
-                            new HiddenLayer(100),
-                            new HiddenLayer(50)
-                    },
-                    new OutputLayer(10)
-            );
-        }
-
-        neuralNetwork.setActivationFunction(new LeakyRelU());
-
-        int trainingSetSize = trainingData.size();
-        System.out.println(trainingSetSize);
-        int batchSize = 1000;
-        Random random = new Random();
-        int indexCounter = 0;
-
-        NumberRecognitionCost costFunction = new NumberRecognitionCost();
-        for (int i = 0; i < 10000; i++) {
-            int start = indexCounter;
-            System.out.println(start+","+(start+batchSize));
-
-            long startTime = System.currentTimeMillis();
-            neuralNetwork.batchMultithreaded(
-                    subListOf(trainingData,start,start+batchSize),
-                    trainingDataObject -> ((TrainingImage) trainingDataObject).getDataTransformed(
-                            random.nextFloat(-0.4f,0.4f),
-                            random.nextFloat(-6,6),
-                            random.nextFloat(-6,6),
-                            random.nextFloat(0.85f,2f)
-                    ),
-                    costFunction,
-                    trainingThreadLimit
-            );
-            long now = System.currentTimeMillis();
-            System.out.println("batch #"+(i%50+1)+" completed in:"+(now-startTime)+"ms");
-
-            indexCounter += batchSize;
-            indexCounter %= trainingData.size();
-
-            if(i%50 == 49){
-                neuralNetwork.serialize(new File(SAVE_PATH));
-                int total = 0;
-                int correct = 0;
-                int randint = random.nextInt(trainingSetSize-10);
-                for (TrainingImage trainingImage : trainingData.subList(randint,randint+10)) {
-                    float rotate = random.nextFloat(-0.4f,0.4f);
-                    float x = random.nextFloat(-6,6);
-                    float y = random.nextFloat(-6,6);
-                    float scale = random.nextFloat(0.75f,2f);
-
-                    trainingImage.log(rotate,x,y,scale);
-
-                    float[] out = neuralNetwork.evaluate(
-                            trainingImage.getDataTransformed(rotate,x,y,scale)
-                    );
-                    float highestVal = -100;
-                    int highestIndex = -1;
-                    for (int number = 0; number < out.length; number++) {
-                        if(out[number] > highestVal){
-                            highestIndex = number;
-                            highestVal = out[number];
-                        }
-                    }
-
-                    total++;
-                    if(highestIndex == trainingImage.label){
-                        correct++;
-                    }
-                    System.out.println("the neural network said:"+highestIndex);
-                    System.out.println(Arrays.toString(out));
-                }
-                System.out.println("batch #"+neuralNetwork.batchCount+" test accuracy:"+(float)correct/(float)total);
-            }
-        }
+        return trainingData;
     }
 
     private static List<TrainingImage> subListOf(List<TrainingImage> trainingData, int start, int end) {
@@ -375,4 +353,29 @@ public class NeuralNetwork {
         return inputFails;
     }
 
+    private static class TokenPredictionTrainingFunction implements TrainingFunction {
+
+        private final TokenInputFunction inputFunction;
+
+        public TokenPredictionTrainingFunction(){
+            this.inputFunction = new TokenInputFunction();
+        }
+
+        @Override
+        public void trainOnData(Object trainingDataObject, NeuralNetwork neuralNetwork) {
+            TextSection textSection = (TextSection) trainingDataObject;
+            for (int i = 0; i < textSection.section.size()-1; i++) {
+                float[] in = this.inputFunction.createInputs(trainingDataObject,i);
+                TokenPredictionCost cost = new TokenPredictionCost();
+                cost.setNext(textSection.section.get(i));
+                neuralNetwork.inputLayer.backpropagate(in, cost, trainingDataObject);
+            }
+        }
+    }
+
+    private static class TokenInputFunction{
+        public float[] createInputs(Object trainingDataObject,int endIndex) {
+            return ((TextSection) trainingDataObject).getData(endIndex);
+        }
+    }
 }

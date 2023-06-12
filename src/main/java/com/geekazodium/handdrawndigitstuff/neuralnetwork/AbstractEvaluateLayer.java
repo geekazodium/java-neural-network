@@ -140,25 +140,25 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         return biasDerivatives;
     }
 
-    public void pushWeightAccumulator() {
+    public void pushWeightAccumulator(float learnRate) {
         while (writingToWeightAccumulator.get()){
             Thread.onSpinWait();
         }
         for (int i = 0; i < this.weightAccumulator.length; i++) {
             float changes = this.weightAccumulator[i]/((float) this.weightAccumulations.get());
-            this.weights[i] -= changes;
+            this.weights[i] -= changes*learnRate;
         }
         this.weightAccumulations.set(0);
         this.weightAccumulator = null;
     }
 
-    public void pushBiasesAccumulator(){
+    public void pushBiasesAccumulator(float learnRate){
         while (writingToBiasAccumulator.get()){
             Thread.onSpinWait();
         }
         for (int i = 0; i < this.biasAccumulator.length; i++) {
             float changes = this.biasAccumulator[i]/((float) this.biasAccumulations.get());
-            this.biases[i] -= changes;
+            this.biases[i] -= changes*learnRate;
         }
         this.biasAccumulations.set(0);
         this.biasAccumulator = null;
