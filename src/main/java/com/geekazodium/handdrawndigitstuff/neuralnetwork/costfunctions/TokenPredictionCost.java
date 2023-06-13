@@ -6,6 +6,8 @@ import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TextS
 public class TokenPredictionCost implements CostFunction {
     private float next;
 
+    private static final float EXPECTED_RESULT_MULTIPLIER = 2;
+
     public TokenPredictionCost() {
     }
 
@@ -15,7 +17,7 @@ public class TokenPredictionCost implements CostFunction {
         float[] costs = new float[textSection.inverseCharset.size()];
         for (int i = 0; i < outs.length; i++) {
             if (i == this.next) {
-                costs[i] = (outs[i] - 1) * (outs[i] - 1);
+                costs[i] = EXPECTED_RESULT_MULTIPLIER*(outs[i] - 1) * (outs[i] - 1);
             } else {
                 costs[i] = (outs[i] - 0) * (outs[i] - 0);
             }
@@ -47,8 +49,8 @@ public class TokenPredictionCost implements CostFunction {
         float cost = 0;
         for (int i = 0; i < outs.length; i++) {
             if (i == this.next) {
-                derivatives[i] = 2 * (outs[i] - 1);
-                cost += (outs[i] - 1) * (outs[i] - 1);
+                derivatives[i] = EXPECTED_RESULT_MULTIPLIER * 2 * (outs[i] - 1);
+                cost += EXPECTED_RESULT_MULTIPLIER * (outs[i] - 1) * (outs[i] - 1);
             } else {
                 derivatives[i] = 2 * (outs[i] - 0);
                 cost += (outs[i] - 0) * (outs[i] - 0);
