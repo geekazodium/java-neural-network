@@ -7,8 +7,6 @@ import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.R
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TrainingText;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TextSection;
 import com.google.gson.*;
-import org.lwjgl.opencl.CL;
-import org.lwjgl.opencl.CLNativeKernel;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;

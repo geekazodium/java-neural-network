@@ -10,7 +10,7 @@ repositories {
 }
 
 val lwjglVersion = "3.3.2"
-val lwjglNatives = "natives-windows"
+val lwjglNatives = "natives-macos"
 
 dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
