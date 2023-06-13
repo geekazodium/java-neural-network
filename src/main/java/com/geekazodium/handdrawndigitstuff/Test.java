@@ -31,31 +31,49 @@ public class Test {
         long kernel = CL30.clCreateKernel(program,"vector_sum",result);
         checkIfSuccess(result,"create kernel");
 
-        long vecA = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY,2*Float.BYTES,null);
+        int argSize = 2 * Float.BYTES;
+        long vecA = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY, argSize,null);
+        long vecB = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY, argSize,null);
+        long vecC = CL30.clCreateBuffer(context,CL30.CL_MEM_WRITE_ONLY, argSize,null);
+
         float[] vecAData = new float[]{0.8f,0.7f};
-        CL30.clEnqueueWriteBuffer(commandQueue,vecA,true,0,vecAData,null,null);
-
-        long vecB = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY,2*Float.BYTES,null);
         float[] vecBData = new float[]{0.8f,0.7f};
-        CL30.clEnqueueWriteBuffer(commandQueue,vecB,true,0,vecBData,null,null);
-
-        long vecC = CL30.clCreateBuffer(context,CL30.CL_MEM_WRITE_ONLY,2*Float.BYTES,null);
         float[] vecCData = new float[2];
 
-        CL30.nclSetKernelArg(kernel,0,2*Float.BYTES,vecA);
-        CL30.nclSetKernelArg(kernel,1,2*Float.BYTES,vecB);
-        CL30.nclSetKernelArg(kernel,2,2*Float.BYTES,vecC);
+        FloatBuffer vecABuffer = BufferUtils.createFloatBuffer(2);
+        FloatBuffer vecBBuffer = BufferUtils.createFloatBuffer(2);
+        FloatBuffer vecCBuffer = BufferUtils.createFloatBuffer(2);
+
+        vecABuffer.put(vecAData);
+        vecBBuffer.put(vecBData);
+
+        CL30.clEnqueueWriteBuffer(commandQueue,vecA,true,0,vecABuffer,null,null);
+        CL30.clEnqueueWriteBuffer(commandQueue,vecB,true,0,vecBBuffer,null,null);
+
+        CL30.clSetKernelArg(kernel,0,vecABuffer);
+        CL30.clSetKernelArg(kernel,1,vecBBuffer);
+        CL30.clSetKernelArg(kernel,2,vecCBuffer);
+
+        PointerBuffer globalWorkOffset = BufferUtils.createPointerBuffer(1);
+        PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(1);
+        PointerBuffer localWorkSize = BufferUtils.createPointerBuffer(1);
+
+        globalWorkOffset.put(0);
+        globalWorkSize.put(2);
+        localWorkSize.put(2);
 
         CL30.clEnqueueNDRangeKernel(
                 commandQueue,kernel,1,
-                null,null,null,
+                globalWorkOffset.rewind(),globalWorkSize.rewind(),localWorkSize.rewind(),
                 null, null
             );
 
 
-        CL30.clEnqueueReadBuffer(commandQueue,vecC,true,0,vecCData,null,null);
+        CL30.clEnqueueReadBuffer(commandQueue,vecC,true,0,vecCBuffer,null,null);
 
         CL30.clFinish(commandQueue);
+
+        vecCBuffer.get(vecCData);
 
         System.out.println(Arrays.toString(vecCData));
     }
@@ -173,9 +191,8 @@ public class Test {
 
         byte[] bytes = new byte[length-1];
         attribBuffer.get(bytes,0,length-1);
-        String s = new String(bytes);
 
-        return s;
+        return new String(bytes);
     }
 
     private static long getDeviceInfoLong(long deviceID, int deviceInfo){
