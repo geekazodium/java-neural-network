@@ -13,10 +13,108 @@ import java.util.Arrays;
 import java.util.List;
 
 public class Test {
+    private static final String src = "__kernel void vector_sum(__constant float* a,__constant float* b,__global float* c){\n" +
+            "    int i = get_global_id(0);\n" +
+            "    float sum = a[i] + b[i];\n" +
+            "    c[i] = sum;\n" +
+            "}";
+
     public static void main(String[] args){
         long[] computeDevices = getPlatformDevices(CL30.CL_DEVICE_TYPE_GPU);
-        System.out.println(Arrays.toString(computeDevices));
-        
+        long gpuComputeDevice = computeDevices[0];
+        long context = getContext(gpuComputeDevice);
+        long commandQueue = getCommandQueue(computeDevices, context);
+        long program = compileProgram(gpuComputeDevice, context,src);
+
+        IntBuffer result = BufferUtils.createIntBuffer(1);
+        long kernel = CL30.clCreateKernel(program,"vector_sum",result);
+        checkIfSuccess(result,"create kernel");
+
+        long vecA = CL30.clCreateBuffer(context,CL10.CL_MEM_READ_ONLY,2*Float.BYTES,null);
+        float[] vecAData = new float[]{0.8f,0.7f};
+        CL30.clEnqueueWriteBuffer(commandQueue,vecA,true,0,vecAData,null,null);
+
+        long vecB = CL30.clCreateBuffer(context,CL10.CL_MEM_READ_ONLY,2*Float.BYTES,null);
+        float[] vecBData = new float[]{0.8f,0.7f};
+        CL30.clEnqueueWriteBuffer(commandQueue,vecB,true,0,vecBData,null,null);
+
+        long vecC = CL30.clCreateBuffer(context,CL10.CL_MEM_WRITE_ONLY,2*Float.BYTES,null);
+
+        CL30.clSetKernelArg(kernel,0,vecA);
+        CL30.clSetKernelArg(kernel,1,vecB);
+        CL30.clSetKernelArg(kernel,2,vecC);
+
+        PointerBuffer globalWorkOffset = BufferUtils.createPointerBuffer(1);
+        globalWorkOffset.put(1);
+        PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(1);
+        globalWorkSize.put(2);
+        PointerBuffer localWorkSize = BufferUtils.createPointerBuffer(1);
+        localWorkSize.put(2);
+
+        CL30.clEnqueueNDRangeKernel(
+                commandQueue,kernel,1,
+                globalWorkOffset.rewind(),globalWorkSize.rewind(),localWorkSize.rewind(),
+                null, null
+            );
+
+        float[] vecCData = new float[2];
+
+        CL30.clEnqueueReadBuffer(commandQueue,vecC,true,0,vecCData,null,null);
+
+        CL30.clFinish(commandQueue); //use clflush if you want cpu to do stuff in the meantime
+
+        System.out.println(Arrays.toString(vecCData));
+    }
+
+    private static long get(long computeDevice) {
+        IntBuffer resultBuffer = BufferUtils.createIntBuffer(1);
+        long context = CL30.clCreateContext(null, computeDevice, null, 0, resultBuffer);
+        checkIfSuccess(resultBuffer,"get context");
+        return context;
+    }
+
+
+    private static long compileProgram(long device, long context,String src) {
+        ProgramStatus programStatus = getProgram(context,src);
+        long program = programStatus.program;
+        int programBuildResult = CL30.clBuildProgram(program, device,"",null,0);
+        int result = programStatus.resultBuffer.get();
+        {
+            ByteBuffer byteBuffer = BufferUtils.createByteBuffer(256);
+            PointerBuffer logSize = BufferUtils.createPointerBuffer(1);
+            CL30.clGetProgramBuildInfo(program, device, CL30.CL_PROGRAM_BUILD_LOG, byteBuffer, logSize);
+            byte[] log = new byte[256];
+            byteBuffer.get(log);
+            System.out.println(new String(log));
+        }
+        return program;
+    }
+
+    private static ProgramStatus getProgram(long context,String src) {
+        IntBuffer resultBuffer = BufferUtils.createIntBuffer(1);
+        long program = CL30.clCreateProgramWithSource(context, src, resultBuffer);
+        return new ProgramStatus(program,resultBuffer);
+    }
+
+    private record ProgramStatus(long program, IntBuffer resultBuffer){}
+
+    private static long getCommandQueue(long[] computeDevices, long context) {
+        IntBuffer resultBuffer = BufferUtils.createIntBuffer(1);
+        long commandQueue = CL30.clCreateCommandQueue(context, computeDevices[0],CL30.CL_CONTEXT_PROPERTIES,resultBuffer);
+        checkIfSuccess(resultBuffer,"create command queue");
+        return commandQueue;
+    }
+
+    private static long getContext(long computeDevice) {
+        IntBuffer resultBuffer = BufferUtils.createIntBuffer(1);
+        long context = CL30.clCreateContext(null, computeDevice, null, 0, resultBuffer);
+        checkIfSuccess(resultBuffer,"get context");
+        return context;
+    }
+
+    private static void checkIfSuccess(IntBuffer resultBuffer,String action){
+        int result = resultBuffer.get();
+        if(result != CL30.CL_SUCCESS) throw new RuntimeException("failed to "+action+", error code:"+result);
     }
 
     private static long[] getPlatformDevices(int deviceType) {
@@ -84,17 +182,6 @@ public class Test {
         String s = new String(bytes);
 
         return s;
-    }
-    private static byte[] getDeviceInfoBytes(long deviceID, int deviceInfo) {
-        ByteBuffer attribBuffer = BufferUtils.createByteBuffer(256);
-        PointerBuffer lengthBuffer = BufferUtils.createPointerBuffer(1);
-        CL30.clGetDeviceInfo(deviceID,deviceInfo,attribBuffer,lengthBuffer);
-        int length = (int) lengthBuffer.get();
-
-        byte[] bytes = new byte[length];
-        attribBuffer.get(bytes,0,length);
-
-        return bytes;
     }
 
     private static long getDeviceInfoLong(long deviceID, int deviceInfo){
