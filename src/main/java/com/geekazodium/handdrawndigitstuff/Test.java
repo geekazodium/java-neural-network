@@ -27,17 +27,23 @@ public class Test {
         long commandQueue = getCommandQueue(gpuComputeDevice, context);
         long program = compileProgram(gpuComputeDevice, context,src);
 
+        int vectorSize = 1024*16;
+
         IntBuffer result = BufferUtils.createIntBuffer(1);
         long kernel = CL30.clCreateKernel(program,"vector_sum",result);
         checkIfSuccess(result,"create kernel");
 
-        float[] vecAData = new float[]{0.8f,0.7f};
-        float[] vecBData = new float[]{0.8f,0.7f};
-        float[] vecCData = new float[2];
+        float[] vecAData = new float[vectorSize];
+        float[] vecBData = new float[vectorSize];
+        float[] vecCData = new float[vectorSize];
+        for (int i = 0; i < vectorSize; i++) {
+            vecAData[i] = (float) Math.random();
+            vecBData[i] = (float) Math.random();
+        }
 
-        FloatBuffer vecABuffer = BufferUtils.createFloatBuffer(2);
-        FloatBuffer vecBBuffer = BufferUtils.createFloatBuffer(2);
-        FloatBuffer vecCBuffer = BufferUtils.createFloatBuffer(2);
+        FloatBuffer vecABuffer = BufferUtils.createFloatBuffer(vectorSize);
+        FloatBuffer vecBBuffer = BufferUtils.createFloatBuffer(vectorSize);
+        FloatBuffer vecCBuffer = BufferUtils.createFloatBuffer(vectorSize);
 
         long vecA = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY | CL30.CL_MEM_COPY_HOST_PTR, vecABuffer,null);
         long vecB = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY | CL30.CL_MEM_COPY_HOST_PTR, vecBBuffer,null);
@@ -60,8 +66,12 @@ public class Test {
         PointerBuffer localWorkSize = BufferUtils.createPointerBuffer(1);
 
         globalWorkOffset.put(0);
-        globalWorkSize.put(2);
-        localWorkSize.put(2);
+        globalWorkSize.put(vectorSize);
+        localWorkSize.put(Math.min(vectorSize,1024));
+
+        globalWorkSize.rewind();
+        globalWorkOffset.rewind();
+        localWorkSize.rewind();
 
         CL30.clEnqueueNDRangeKernel(
                 commandQueue,kernel,1,
