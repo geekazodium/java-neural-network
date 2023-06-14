@@ -84,7 +84,7 @@ public class Test {
         long program = programStatus.program;
         int programBuildResult = CL30.clBuildProgram(program, device,"",null,0);
         int result = programStatus.resultBuffer.get();
-        {
+        if(programBuildResult!=CL30.CL_SUCCESS){
             ByteBuffer byteBuffer = BufferUtils.createByteBuffer(256);
             PointerBuffer logSize = BufferUtils.createPointerBuffer(1);
             CL30.clGetProgramBuildInfo(program, device, CL30.CL_PROGRAM_BUILD_LOG, byteBuffer, logSize);
