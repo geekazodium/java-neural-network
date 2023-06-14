@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class Test {
-    private static final String src = "__kernel void vector_sum(__constant float* a,__constant float* b,__global float* c){\n" +
+    private static final String src = "__kernel void vector_sum(__constant float *a,__constant float *b,__global float *c){\n" +
             "    int i = get_global_id(0);\n" +
             "    float sum = a[i] + b[i];\n" +
             "    c[i] = sum;\n" +
@@ -31,11 +31,6 @@ public class Test {
         long kernel = CL30.clCreateKernel(program,"vector_sum",result);
         checkIfSuccess(result,"create kernel");
 
-        int argSize = 2 * Float.BYTES;
-        long vecA = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY, argSize,null);
-        long vecB = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY, argSize,null);
-        long vecC = CL30.clCreateBuffer(context,CL30.CL_MEM_WRITE_ONLY, argSize,null);
-
         float[] vecAData = new float[]{0.8f,0.7f};
         float[] vecBData = new float[]{0.8f,0.7f};
         float[] vecCData = new float[2];
@@ -44,15 +39,21 @@ public class Test {
         FloatBuffer vecBBuffer = BufferUtils.createFloatBuffer(2);
         FloatBuffer vecCBuffer = BufferUtils.createFloatBuffer(2);
 
+        long vecA = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY | CL30.CL_MEM_COPY_HOST_PTR, vecABuffer,null);
+        long vecB = CL30.clCreateBuffer(context,CL30.CL_MEM_READ_ONLY | CL30.CL_MEM_COPY_HOST_PTR, vecBBuffer,null);
+        long vecC = CL30.clCreateBuffer(context,CL30.CL_MEM_WRITE_ONLY | CL30.CL_MEM_COPY_HOST_PTR, vecCBuffer,null);
+
         vecABuffer.put(vecAData);
         vecBBuffer.put(vecBData);
+        vecABuffer.rewind();
+        vecBBuffer.rewind();
 
         CL30.clEnqueueWriteBuffer(commandQueue,vecA,true,0,vecABuffer,null,null);
         CL30.clEnqueueWriteBuffer(commandQueue,vecB,true,0,vecBBuffer,null,null);
 
-        CL30.clSetKernelArg(kernel,0,vecABuffer);
-        CL30.clSetKernelArg(kernel,1,vecBBuffer);
-        CL30.clSetKernelArg(kernel,2,vecCBuffer);
+        CL30.clSetKernelArg(kernel,0,new long[]{vecA});
+        CL30.clSetKernelArg(kernel,1,new long[]{vecB});
+        CL30.clSetKernelArg(kernel,2,new long[]{vecC});
 
         PointerBuffer globalWorkOffset = BufferUtils.createPointerBuffer(1);
         PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(1);
@@ -77,14 +78,6 @@ public class Test {
 
         System.out.println(Arrays.toString(vecCData));
     }
-
-    private static long get(long computeDevice) {
-        IntBuffer resultBuffer = BufferUtils.createIntBuffer(1);
-        long context = CL30.clCreateContext(null, computeDevice, null, 0, resultBuffer);
-        checkIfSuccess(resultBuffer,"get context");
-        return context;
-    }
-
 
     private static long compileProgram(long device, long context,String src) {
         ProgramStatus programStatus = getProgram(context,src);

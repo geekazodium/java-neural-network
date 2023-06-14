@@ -229,18 +229,18 @@ public class NeuralNetwork {
                     new InputLayer(inputNeurons),
                     new EvaluateLayer[]{
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
-                                    new HiddenLayer(512),
-                                    new HiddenLayer(256),
-                                    new HiddenLayer(128)
-                            }, ResidualConcatBlock.instantiate(inputNeurons,128)),
-                            new ResidualBlockFrame(inputNeurons+128, new AbstractLayer[]{
-                                    new HiddenLayer(512),
-                                    new HiddenLayer(256),
-                                    new HiddenLayer(64)
-                            }, new ResidualAddBlock(inputNeurons+128,64,0)),
-                            new HiddenLayer(1024*2),
-                            new HiddenLayer((512+256)*2),
-                            new HiddenLayer(512*2)
+                                    new HiddenLayer(512*2),
+                                    new HiddenLayer(256*2),
+                                    new HiddenLayer(128*2)
+                            }, ResidualConcatBlock.instantiate(inputNeurons,128*2)),
+                            new ResidualBlockFrame(inputNeurons+128*2, new AbstractLayer[]{
+                                    new HiddenLayer(512*2),
+                                    new HiddenLayer(256*2),
+                                    new HiddenLayer(64*2)
+                            }, new ResidualAddBlock(inputNeurons+128*2,64*2,0)),
+                            new HiddenLayer(1024*3),
+                            new HiddenLayer((512+256)*3),
+                            new HiddenLayer(512*3)
                     },
                     new OutputLayer(outputNeurons)
             );
@@ -249,7 +249,7 @@ public class NeuralNetwork {
         neuralNetwork.serialize(new File(SAVE_PATH));
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(1f);
+        neuralNetwork.setLearnRate(0.5f);
 
         TextSection section = trainingData.getExample();
         section.log();

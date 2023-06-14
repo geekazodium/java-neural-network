@@ -6,7 +6,7 @@ import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TextS
 public class TokenPredictionCost implements CostFunction {
     private float next;
 
-    private static final float EXPECTED_RESULT_MULTIPLIER = 2;
+    private static final float EXPECTED_RESULT_MULTIPLIER = 1.1f;
 
     public TokenPredictionCost() {
     }
