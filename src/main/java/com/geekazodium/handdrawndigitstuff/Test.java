@@ -21,17 +21,37 @@ public class Test {
             "}";
 
     public static void main(String[] args){
+
+        int vectorSize = 1024*16;
+        benchmarkCL(vectorSize);
+
+        long timeStart = System.currentTimeMillis();
+        float[] vecAData = new float[vectorSize];
+        float[] vecBData = new float[vectorSize];
+        float[] vecCData = new float[vectorSize];
+        for (int i = 0; i < vectorSize; i++) {
+            vecAData[i] = (float) Math.random();
+            vecBData[i] = (float) Math.random();
+        }
+        for (int i = 0;i<vectorSize;i++){
+            vecCData[i] = vecAData[i] + vecBData[i];
+        }
+        long timeEnd = System.currentTimeMillis();
+        System.out.println(timeEnd-timeStart);
+    }
+
+    private static void benchmarkCL(int vectorSize) {
         long[] computeDevices = getPlatformDevices(CL30.CL_DEVICE_TYPE_GPU);
         long gpuComputeDevice = computeDevices[0];
         long context = getContext(gpuComputeDevice);
         long commandQueue = getCommandQueue(gpuComputeDevice, context);
         long program = compileProgram(gpuComputeDevice, context,src);
 
-        int vectorSize = 1024*16;
-
         IntBuffer result = BufferUtils.createIntBuffer(1);
         long kernel = CL30.clCreateKernel(program,"vector_sum",result);
         checkIfSuccess(result,"create kernel");
+
+        long timeStart = System.currentTimeMillis();
 
         float[] vecAData = new float[vectorSize];
         float[] vecBData = new float[vectorSize];
@@ -66,8 +86,8 @@ public class Test {
         PointerBuffer localWorkSize = BufferUtils.createPointerBuffer(1);
 
         globalWorkOffset.put(0);
-        globalWorkSize.put(vectorSize);
-        localWorkSize.put(Math.min(vectorSize,1024));
+        globalWorkSize.put(1024*16);
+        localWorkSize.put(1024);
 
         globalWorkSize.rewind();
         globalWorkOffset.rewind();
@@ -86,7 +106,11 @@ public class Test {
 
         vecCBuffer.get(vecCData);
 
+        long timeComplete = System.currentTimeMillis();
+
         System.out.println(Arrays.toString(vecCData));
+
+        System.out.println(timeComplete-timeStart);
     }
 
     private static long compileProgram(long device, long context,String src) {
