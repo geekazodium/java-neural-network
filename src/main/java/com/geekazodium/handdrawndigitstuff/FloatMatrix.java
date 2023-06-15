@@ -39,4 +39,15 @@ public class FloatMatrix {
     public int size() {
         return this.data.length;
     }
+
+    @FunctionalInterface
+    public interface RandomData{
+        float getRandom(int index);
+    }
+
+    public void fillWithRandom(RandomData randomData){
+        for (int i = 0; i < this.data.length; i++) {
+            this.data[i] = randomData.getRandom(i);
+        }
+    }
 }
