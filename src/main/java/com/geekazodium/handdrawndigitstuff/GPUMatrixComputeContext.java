@@ -13,8 +13,8 @@ import java.util.List;
 
 import static org.lwjgl.opencl.CL30.*;
 
-public class Test {
-    private static final String src = """
+public class GPUMatrixComputeContext {
+    private static final String listAddSrc = """
             __kernel void vector_sum(__constant float *a,__constant float *b,__global float *c){
                 int i = get_global_id(0);
                 float sum = a[i] + b[i];
@@ -23,49 +23,27 @@ public class Test {
 
     private static final String matrixMultiplySrc = """
             __kernel void matrix_multiply(
-                    __constant float *leftMatrix,
                     __constant float *rightMatrix,
+                    __constant float *leftMatrix,
                     __global float *resultMatrix,
                     __constant int *dimensions
                     ){
-                int v = get_global_id(0);
-                int h = get_global_id(1);
+                int x = get_global_id(0);
+                int y = get_global_id(1);
                 
                 int commonVH = dimensions[1];
                 int rightMatrixH = dimensions[2];
                                 
                 for(int i = 0;i<commonVH;i++){
-                    int leftMatrixIndex = i + v * commonVH;//i*1 (implicit)
-                    int rightMatrixIndex = h + i * rightMatrixH;
-                    resultMatrix[v+commonVH*h] += leftMatrix[leftMatrixIndex]*rightMatrix[rightMatrixIndex];
+                    int leftMatrixIndex = i + y * commonVH;//i*1 (implicit)
+                    int rightMatrixIndex = x + i * rightMatrixH;
+                    resultMatrix[x+y*rightMatrixH] += leftMatrix[leftMatrixIndex]*rightMatrix[rightMatrixIndex];
                 }
             }
             
             """;
 
-//    __constant int *leftMatrixV,
-//    __constant int *rightMatrixH,
-//    __constant int *commonVH
-
     public static void main(String[] args){
-
-        int vectorSize = 1024*16;
-//        benchmarkCL(vectorSize);
-
-        long timeStart = System.currentTimeMillis();
-        float[] vecAData = new float[vectorSize];
-        float[] vecBData = new float[vectorSize];
-        float[] vecCData = new float[vectorSize];
-        for (int i = 0; i < vectorSize; i++) {
-            vecAData[i] = (float) Math.random();
-            vecBData[i] = (float) Math.random();
-        }
-        for (int i = 0;i<vectorSize;i++){
-            vecCData[i] = vecAData[i] + vecBData[i];
-        }
-        long timeEnd = System.currentTimeMillis();
-        System.out.println(timeEnd-timeStart);
-
         FloatMatrix matrix1 = new FloatMatrix(2,3);
         matrix1.set(10,1,2);
         matrix1.set(-10,1,1);
@@ -78,58 +56,29 @@ public class Test {
         matrix2.set(6,1,0);
         matrix2.set(-2,2,0);
         System.out.println(matrix2);
-        vectorMatrixMul(matrix1,matrix2);
+        GPUMatrixComputeContext computeContext = new GPUMatrixComputeContext();
+        FloatMatrix resultMatrix = computeContext.vectorMatrixMul(matrix1, matrix2);
+        System.out.println(resultMatrix);
     }
 
-    public static class FloatMatrix{
-        public int height;
-        public int width;
-        public float[] data;
-        public FloatMatrix(int v, int h){
-            this(new float[v*h],v,h);
-        }
-        public FloatMatrix(float[] data, int v, int h) {
-            this.height = v;
-            this.width = h;
-            this.data = data;
-        }
+    private final long commandQueue;
+    private final long computeMatrixMultiplyProgram;
+    private final long computeMatrixMultiplyKernel;
+    private final long gpuContext;
 
-        @Override
-        public String toString() {
-            StringBuilder out = new StringBuilder("[");
-            for (int i = 0; i < this.data.length; i++) {
-                int x = (i+1)% width;
-                out.append(this.data[i]);
-                if(i+1 >= this.data.length) out.append("]");
-                else{
-                    out.append(", ");
-                    if(x == 0){
-                        out.append("\n ");
-                    }
-                }
-            }
-            return out.toString();
-        }
-
-        public void set(float value,int v,int h){
-            this.data[h+v*this.width] = value;
-        }
-    }
-
-    private static void vectorMatrixMul(FloatMatrix leftMatrix, FloatMatrix rightMatrix){
-        if(leftMatrix.width !=rightMatrix.height)throw new RuntimeException("matrix dimension mismatch");
-
+    public GPUMatrixComputeContext() {
         long[] computeDevices = getPlatformDevices(CL_DEVICE_TYPE_GPU);
         long gpuComputeDevice = computeDevices[0];
-        long context = getContext(gpuComputeDevice);
-        long commandQueue = getCommandQueue(gpuComputeDevice, context);
-        long program = compileProgram(gpuComputeDevice, context,matrixMultiplySrc);
-
+        gpuContext = getContext(gpuComputeDevice);
+        commandQueue = getCommandQueue(gpuComputeDevice, gpuContext);
+        computeMatrixMultiplyProgram = compileProgram(gpuComputeDevice, gpuContext, matrixMultiplySrc);
         IntBuffer result = BufferUtils.createIntBuffer(1);
-        long kernel = clCreateKernel(program,"matrix_multiply",result);
-        checkIfSuccess(result,"create kernel");
+        computeMatrixMultiplyKernel = clCreateKernel(computeMatrixMultiplyProgram, "matrix_multiply", result);
+        checkIfSuccess(result, "create kernel");
+    }
 
-        long timeStart = System.currentTimeMillis();
+    public FloatMatrix vectorMatrixMul(FloatMatrix leftMatrix, FloatMatrix rightMatrix){
+        if(leftMatrix.width !=rightMatrix.height)throw new RuntimeException("matrix dimension mismatch");
 
         FloatMatrix resultMatrix = new FloatMatrix(leftMatrix.height,rightMatrix.width);
 
@@ -139,47 +88,58 @@ public class Test {
         dimensions.put(rightMatrix.width);
         dimensions.rewind();
 
-        long rightMatrixCLBuffer = clCreateBuffer(context,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, rightMatrix.data,null);
-        long leftMatrixCLBuffer = clCreateBuffer(context,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, leftMatrix.data,null);
-        long dimensionsCLBuffer = clCreateBuffer(context,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, dimensions,null);
-        long resultMatrixCLBuffer = clCreateBuffer(context,CL_MEM_WRITE_ONLY | CL_MEM_COPY_HOST_PTR, resultMatrix.data,null);
+        MatrixMultiplyCLBuffers buffers = createCLMatrixMultiplyBuffers(leftMatrix.data.length, rightMatrix.data.length, resultMatrix.data.length, dimensions);
 
-        clEnqueueWriteBuffer(commandQueue,rightMatrixCLBuffer,true,0,rightMatrix.data,null,null);
-        clEnqueueWriteBuffer(commandQueue,leftMatrixCLBuffer,true,0,leftMatrix.data,null,null);
-        clEnqueueWriteBuffer(commandQueue,dimensionsCLBuffer,true,0,dimensions,null,null);
+        clEnqueueWriteBuffer(commandQueue, buffers.rightMatrixCLBuffer(),true,0,rightMatrix.data,null,null);
+        clEnqueueWriteBuffer(commandQueue, buffers.leftMatrixCLBuffer(),true,0,leftMatrix.data,null,null);
+        clEnqueueWriteBuffer(commandQueue, buffers.dimensionsCLBuffer(),true,0,dimensions,null,null);
 
-        clSetKernelArg(kernel,0,new long[]{rightMatrixCLBuffer});
-        clSetKernelArg(kernel,1,new long[]{leftMatrixCLBuffer});
-        clSetKernelArg(kernel,2,new long[]{resultMatrixCLBuffer});
-        clSetKernelArg(kernel,3,new long[]{dimensionsCLBuffer});
+        clSetKernelArg(computeMatrixMultiplyKernel,0,new long[]{buffers.rightMatrixCLBuffer()});
+        clSetKernelArg(computeMatrixMultiplyKernel,1,new long[]{buffers.leftMatrixCLBuffer()});
+        clSetKernelArg(computeMatrixMultiplyKernel,2,new long[]{buffers.resultMatrixCLBuffer()});
+        clSetKernelArg(computeMatrixMultiplyKernel,3,new long[]{buffers.dimensionsCLBuffer()});
 
         PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(2);
         PointerBuffer localWorkSize = BufferUtils.createPointerBuffer(2);
 
-        globalWorkSize.put(resultMatrix.height);
         globalWorkSize.put(resultMatrix.width);
-        localWorkSize.put(Math.min(256,resultMatrix.height));
+        globalWorkSize.put(resultMatrix.height);
         localWorkSize.put(Math.min(256,resultMatrix.width));
+        localWorkSize.put(Math.min(256,resultMatrix.height));
 
         globalWorkSize.rewind();
         localWorkSize.rewind();
 
         clEnqueueNDRangeKernel(
-                commandQueue,kernel,2,
+                commandQueue,computeMatrixMultiplyKernel,2,
                 null,globalWorkSize,localWorkSize,
                 null, null
         );
 
-
-        clEnqueueReadBuffer(commandQueue,resultMatrixCLBuffer,true,0,resultMatrix.data,null,null);
+        clEnqueueReadBuffer(commandQueue, buffers.resultMatrixCLBuffer(),true,0,resultMatrix.data,null,null);
 
         clFinish(commandQueue);
 
-        long timeComplete = System.currentTimeMillis();
+        buffers.release();
+        
+        return resultMatrix;
+    }
 
-        System.out.println(resultMatrix);
+    public MatrixMultiplyCLBuffers createCLMatrixMultiplyBuffers(int leftMatrix, int rightMatrix, int resultMatrix, IntBuffer dimensions) {
+        long rightMatrixCLBuffer = clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, new float[rightMatrix],null);
+        long leftMatrixCLBuffer = clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, new float[leftMatrix],null);
+        long dimensionsCLBuffer = clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, dimensions,null);
+        long resultMatrixCLBuffer = clCreateBuffer(gpuContext,CL_MEM_WRITE_ONLY | CL_MEM_COPY_HOST_PTR, new float[resultMatrix],null);
+        return new MatrixMultiplyCLBuffers(rightMatrixCLBuffer, leftMatrixCLBuffer, dimensionsCLBuffer, resultMatrixCLBuffer);
+    }
 
-        System.out.println(timeComplete-timeStart);
+    public record MatrixMultiplyCLBuffers(long rightMatrixCLBuffer, long leftMatrixCLBuffer, long dimensionsCLBuffer, long resultMatrixCLBuffer) {
+        private void release(){
+            clReleaseMemObject(rightMatrixCLBuffer);
+            clReleaseMemObject(leftMatrixCLBuffer);
+            clReleaseMemObject(dimensionsCLBuffer);
+            clReleaseMemObject(resultMatrixCLBuffer);
+        }
     }
 
     private static void benchmarkCL(int vectorSize) {
@@ -187,7 +147,7 @@ public class Test {
         long gpuComputeDevice = computeDevices[0];
         long context = getContext(gpuComputeDevice);
         long commandQueue = getCommandQueue(gpuComputeDevice, context);
-        long program = compileProgram(gpuComputeDevice, context,src);
+        long program = compileProgram(gpuComputeDevice, context, listAddSrc);
 
         IntBuffer result = BufferUtils.createIntBuffer(1);
         long kernel = clCreateKernel(program,"vector_sum",result);
