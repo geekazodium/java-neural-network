@@ -134,8 +134,6 @@ public class GPUMatrixComputeContext {
             height += localHeight-height%localHeight;
         }
 
-        System.out.println(width+","+height);
-
         globalWorkSize.put(width);
         globalWorkSize.put(height);
         localWorkSize.put(localWidth);
@@ -241,28 +239,26 @@ public class GPUMatrixComputeContext {
 //    }
 
     private static long compileProgram(long device, long context,String src) {
-        ProgramStatus programStatus = getProgram(context,src);
-        long program = programStatus.program;
+        long program = getProgram(context,src);
         int programBuildResult = clBuildProgram(program, device,"",null,0);
-        int result = programStatus.resultBuffer.get();
         if(programBuildResult!=CL_SUCCESS){
             ByteBuffer byteBuffer = BufferUtils.createByteBuffer(256);
             PointerBuffer logSize = BufferUtils.createPointerBuffer(1);
             clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, byteBuffer, logSize);
-            byte[] log = new byte[256];
-            byteBuffer.get(log);
+            int len = (int) logSize.get();
+            byte[] log = new byte[len];
+            byteBuffer.get(log,0,len);
             System.out.println(new String(log));
         }
         return program;
     }
 
-    private static ProgramStatus getProgram(long context,String src) {
+    private static long getProgram(long context, String src) {
         IntBuffer resultBuffer = BufferUtils.createIntBuffer(1);
         long program = clCreateProgramWithSource(context, src, resultBuffer);
-        return new ProgramStatus(program,resultBuffer);
+        checkIfSuccess(resultBuffer,"create program");
+        return program;
     }
-
-    private record ProgramStatus(long program, IntBuffer resultBuffer){}
 
     private static long getCommandQueue(long computeDevice, long context) {
         IntBuffer resultBuffer = BufferUtils.createIntBuffer(1);

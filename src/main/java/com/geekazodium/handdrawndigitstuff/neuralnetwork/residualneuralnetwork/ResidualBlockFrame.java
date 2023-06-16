@@ -183,6 +183,15 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         return mergeOperations.get(mergeType);
     }
 
+    @Override
+    public int layerDepth() {
+        int depth = 2;
+        for (AbstractLayer internalLayer : this.internalLayers) {
+            depth += internalLayer.layerDepth();
+        }
+        return depth;
+    }
+
     public static abstract class ResidualMergeOperation extends AbstractLayer implements EvaluateLayer,NonFinalLayer{
         protected AbstractLayer internalPreviousLayer;
         protected final int inputLength;

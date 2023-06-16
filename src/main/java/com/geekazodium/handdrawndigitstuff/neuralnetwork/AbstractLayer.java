@@ -3,6 +3,7 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 public abstract class AbstractLayer {
     public final int nodeCount;
     protected ActivationFunction activationFunction;
+    public int index;
 
     public AbstractLayer(int nodes){
         this.nodeCount = nodes;
@@ -34,5 +35,13 @@ public abstract class AbstractLayer {
     public void printStructure(){
         System.out.println(this.nodeCount +" "+ this.getClass().getName());
         if(this instanceof NonFinalLayer nonFinalLayer) ((AbstractLayer) nonFinalLayer.getNextLayer()).printStructure();
+    }
+
+    public int layerDepth(){
+        return 1;
+    }
+
+    public void assignIndex(int depth) {
+        this.index = depth;
     }
 }
