@@ -37,7 +37,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     private void fillArrayWithRandomValues(float[] array){
         for (int i = 0; i <array.length; i++) {
-            array[i] = (float) ((Math.random()*2d-1d)/20d);
+            array[i] = (float) ((Math.random()*2d-1d)/15d);
         }
     }
 
@@ -308,5 +308,44 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     @Override
     public float[] getBiases() {
         return biases;
+    }
+
+    @Override
+    public String getEvaluateKernelSrc() {
+        String kernelSrc = """
+                __kernel void evaluate(
+                        __constant float *weights,
+                        __constant float *biases,
+                        __global float *previousLayer,
+                        __global float *output,
+                        __constant int *layerSizePointer,
+                        __constant int *previousLayerSizePointer
+                        ){
+                    int neuron = get_global_id(0);
+                    int stackLayer = get_global_id(1);
+                    
+                    int layerSize = layerSizePointer[0];
+                    int previousLayerSize = previousLayerSizePointer[0];
+                    
+                    int stackOffset = layerSize * stackLayer;
+                    int previousLayerStackOffset = previousLayerSize * stackLayer;
+                    
+                    int resultLocation = neuron + stackOffset;
+                    
+                    float result = biases[neuron];
+                    
+                    for(int p = 0;p<previousLayerSize;p++){
+                        result += weights[p + neuron * previousLayerSize] * previousLayer[p + stackOffset];
+                    }
+                    
+                    output[resultLocation] = """ + activationFunctionString("result") + """
+                }
+                """;
+        //System.out.println(kernelSrc);
+        return kernelSrc;
+    }
+
+    private String activationFunctionString(String result){
+        return " ("+result+">0)?"+result+":"+result+"* 0.01f;\n";
     }
 }

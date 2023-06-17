@@ -72,7 +72,7 @@ public abstract class AbstractLayer {
     }
 
     public String getEvaluateKernelSrc() {
-        return "";
+        return null;
     }
 
     public record LayerBuffers(long weights, long biases, int types){}

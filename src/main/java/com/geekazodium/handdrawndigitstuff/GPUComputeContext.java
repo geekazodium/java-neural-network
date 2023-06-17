@@ -91,16 +91,33 @@ public class GPUComputeContext {
     public void compileNetworkLayerKernels(){
         this.layerEvaluateKernels = new long[this.neuralNetworkDepth];
         for (int i = 0; i < this.neuralNetworkDepth; i++) {
-            layerEvaluateKernels[i] = getKernel(gpuComputeDevice, this.neuralNetworkLayers[i].getEvaluateKernelSrc(), "evaluate");
+            String evaluateKernelSrc = this.neuralNetworkLayers[i].getEvaluateKernelSrc();
+            if(evaluateKernelSrc == null)continue;
+            layerEvaluateKernels[i] = getKernel(gpuComputeDevice, evaluateKernelSrc, "evaluate");
         }
     }
 
-    public void setInputs(){
-        
+    private int stackSize = 0;
+
+    long[] layerDataBuffers;
+    float[][] layerStackedData;
+
+    public void setStackSize(int stackSize){
+        this.stackSize = stackSize;
+        if(stackSize>1024)System.out.println("stack size is above 1024, be careful not to put too much into the gpu memory");
     }
 
-    public void evaluate(){
+    public void setInputs(float[] inputStack){
+        layerDataBuffers = new long[this.neuralNetworkDepth];
+        layerStackedData = new float[this.neuralNetworkDepth][];
+        for (int i = 0; i < this.neuralNetworkLayers.length; i++) {
+            int layerStackedSize = this.neuralNetworkLayers[i].nodeCount * this.stackSize;
+            float[] layerStacked = new float[layerStackedSize];
+            layerStackedData[i] = layerStacked;
+            layerDataBuffers[i] = clCreateBuffer(gpuContext,CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,layerStacked,null);
+        }
 
+        System.arraycopy(inputStack,0,layerStackedData[0],0,inputStack.length);
     }
 
     private long getKernel(long gpuComputeDevice, String src, String kernelName) {
@@ -115,12 +132,12 @@ public class GPUComputeContext {
         long program = getProgram(context,src);
         int programBuildResult = clBuildProgram(program, device,"",null,0);
         if(programBuildResult!=CL_SUCCESS){
-            ByteBuffer byteBuffer = BufferUtils.createByteBuffer(256);
+            ByteBuffer byteBuffer = BufferUtils.createByteBuffer(2048);
             PointerBuffer logSize = BufferUtils.createPointerBuffer(1);
             clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, byteBuffer, logSize);
-            int len = (int) logSize.get();
+            int len = (int) logSize.get()-1;
             byte[] log = new byte[len];
-            byteBuffer.get(log,0,len);
+            byteBuffer.get(log,0,Math.min(len,2048));
             System.out.println(new String(log));
         }
         return program;
