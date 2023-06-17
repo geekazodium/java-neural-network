@@ -2,6 +2,8 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 import com.google.gson.JsonObject;
 
+import static com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualBlockFrame.RESIDUAL_ADD_ID;
+
 public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation{
     public final int startPosition;
 
@@ -42,5 +44,10 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
     @Override
     public String name() {
         return "ResidualAdd";
+    }
+
+    @Override
+    public int getType() {
+        return RESIDUAL_ADD_ID;
     }
 }

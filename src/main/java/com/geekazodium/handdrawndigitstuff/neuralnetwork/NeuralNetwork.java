@@ -317,14 +317,14 @@ public class NeuralNetwork {
 
         int depth = getDepth();
 
-        uploadToGPU(depth);
+        uploadToGPU();
 
         for (AbstractLayer layer : this.layers) {
             System.out.println(layer.getIndex());
         }
     }
 
-    private int getDepth() {
+    public int getDepth() {
         int depth = 0;
         for (AbstractLayer layer : this.layers) {
             layer.assignIndex(depth);
@@ -332,8 +332,11 @@ public class NeuralNetwork {
         }
         return depth;
     }
-    public void uploadToGPU(int depth){
-        gpuComputeContext.createNetworkBuffers(depth,this);
+    public void uploadToGPU(){
+        gpuComputeContext.setNeuralNetwork(this);
+        gpuComputeContext.createNetworkBuffers();
+        gpuComputeContext.uploadNetworkToGPU();
+        gpuComputeContext.compileNetworkLayerKernels();
     }
 
     public void closeGPUTrainingContext(){

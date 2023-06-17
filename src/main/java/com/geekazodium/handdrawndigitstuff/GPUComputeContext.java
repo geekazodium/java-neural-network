@@ -10,25 +10,31 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
+import static com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractLayer.EVALUATE_LAYER_ID;
 import static org.lwjgl.opencl.CL30.*;
 
 public class GPUComputeContext {
 
 
+    private final long gpuComputeDevice;
     public long[] weightBuffers;
     public long[] biasBuffers;
+    private int[] layerTypes;
+    private long[] layerEvaluateKernels;
     public long layerTypeBuffer;
+
+    public AbstractLayer[] neuralNetworkLayers;
 
     private final long commandQueue;
     private final long gpuContext;
     private final long[] deviceLocalMaxWorkSize = new long[3];
+    private int neuralNetworkDepth;
 
     public GPUComputeContext() {
         long[] computeDevices = getPlatformDevices(CL_DEVICE_TYPE_GPU);
-        long gpuComputeDevice = computeDevices[0];
+        gpuComputeDevice = computeDevices[0];
         gpuContext = getContext(gpuComputeDevice);
         commandQueue = getCommandQueue(gpuComputeDevice, gpuContext);
 
@@ -36,22 +42,65 @@ public class GPUComputeContext {
         System.arraycopy(workDimLongs,0,deviceLocalMaxWorkSize,0,3);
     }
 
-    public void createNetworkBuffers(int depth, NeuralNetwork neuralNetwork) {
-        this.weightBuffers = new long[depth];
-        this.biasBuffers = new long[depth];
-
+    public void setNeuralNetwork(NeuralNetwork neuralNetwork){
+        neuralNetworkDepth = neuralNetwork.getDepth();
+        this.neuralNetworkLayers = new AbstractLayer[neuralNetworkDepth];
         for (AbstractLayer layer : neuralNetwork.layers) {
             int index = layer.getIndex();
-            AbstractLayer.LayerBuffers buffer = layer.createBuffer(this.gpuContext);
-            long[] biases = buffer.biases();
-            long[] weights = buffer.weights();
-            for (int i = 0; i < biases.length; i++) {
-                this.weightBuffers[i+index] = weights[i];
-                this.biasBuffers[i+index] = biases[i];
+            AbstractLayer[] array = layer.getAsLayerArray();
+            System.arraycopy(array, 0, this.neuralNetworkLayers, index, array.length);
+        }
+    }
+
+    public void createNetworkBuffers() {
+        this.layerTypes = new int[this.neuralNetworkDepth];
+        this.biasBuffers = new long[this.neuralNetworkDepth];
+        this.weightBuffers = new long[this.neuralNetworkDepth];
+
+        for (int i = 0; i < this.neuralNetworkLayers.length; i++) {
+            AbstractLayer.LayerBuffers buffer = this.neuralNetworkLayers[i].createBuffer(gpuContext);
+            layerTypes[i] = buffer.types();
+            weightBuffers[i] = buffer.weights();
+            biasBuffers[i] = buffer.biases();
+        }
+
+        layerTypeBuffer = clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, layerTypes,null);
+    }
+
+    public void uploadNetworkToGPU(){
+        clEnqueueWriteBuffer(commandQueue,layerTypeBuffer,true,0,layerTypes,null,null);
+        for (int i = 0; i < this.neuralNetworkDepth; i++) {
+            if(layerTypes[i] == EVALUATE_LAYER_ID){
+                AbstractLayer neuralNetworkLayer = neuralNetworkLayers[i];
+
+                long weightBuffer = weightBuffers[i];
+                float[] weights = neuralNetworkLayer.getWeights();
+
+                long biasBuffer = biasBuffers[i];
+                float[] biases = neuralNetworkLayer.getBiases();
+
+                clEnqueueWriteBuffer(commandQueue, weightBuffer,true,0, weights,null,null);
+                clEnqueueWriteBuffer(commandQueue, biasBuffer,true,0, biases,null,null);
             }
         }
-        System.out.println(Arrays.toString(weightBuffers));
-        System.out.println(Arrays.toString(biasBuffers));
+        System.out.println("uploading network to GPU...");
+        clFinish(commandQueue);
+        System.out.println("successfully uploaded network to GPU!");
+    }
+
+    public void compileNetworkLayerKernels(){
+        this.layerEvaluateKernels = new long[this.neuralNetworkDepth];
+        for (int i = 0; i < this.neuralNetworkDepth; i++) {
+            layerEvaluateKernels[i] = getKernel(gpuComputeDevice, this.neuralNetworkLayers[i].getEvaluateKernelSrc(), "evaluate");
+        }
+    }
+
+    public void setInputs(){
+        
+    }
+
+    public void evaluate(){
+
     }
 
     private long getKernel(long gpuComputeDevice, String src, String kernelName) {

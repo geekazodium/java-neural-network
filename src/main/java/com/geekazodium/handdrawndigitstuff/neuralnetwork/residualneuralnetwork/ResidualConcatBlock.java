@@ -2,6 +2,8 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 import com.google.gson.JsonObject;
 
+import static com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualBlockFrame.RESIDUAL_CONCAT_ID;
+
 public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperation{
     public ResidualConcatBlock(int nodes,int input) {
         super(nodes,input);
@@ -35,5 +37,10 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
     @Override
     public String name() {
         return "ResidualConcat";
+    }
+
+    @Override
+    public int getType() {
+        return RESIDUAL_CONCAT_ID;
     }
 }

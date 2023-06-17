@@ -1,6 +1,8 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 public abstract class AbstractLayer {
+    public static final int ABSTRACT_LAYER_ID = 742;
+    public static final int EVALUATE_LAYER_ID = 880;
     public final int nodeCount;
     protected ActivationFunction activationFunction;
     private int index;
@@ -46,7 +48,7 @@ public abstract class AbstractLayer {
     }
 
     public LayerBuffers createBuffer(long gpuContext) {
-        return new LayerBuffers(new long[0],new long[0]);
+        return new LayerBuffers(0,0,ABSTRACT_LAYER_ID);
     }
 
     public int getIndex() {
@@ -57,5 +59,21 @@ public abstract class AbstractLayer {
         this.index = index;
     }
 
-    public record LayerBuffers(long[] weights, long[] biases){}
+    public AbstractLayer[] getAsLayerArray() {
+        return new AbstractLayer[]{this};
+    }
+
+    public float[] getWeights() {
+        return null;
+    }
+
+    public float[] getBiases() {
+        return null;
+    }
+
+    public String getEvaluateKernelSrc() {
+        return "";
+    }
+
+    public record LayerBuffers(long weights, long biases, int types){}
 }

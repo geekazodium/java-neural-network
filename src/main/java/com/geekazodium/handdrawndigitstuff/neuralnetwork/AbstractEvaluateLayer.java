@@ -293,12 +293,20 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     @Override
     public LayerBuffers createBuffer(long gpuContext) {
-        long[] weightsBuffer = new long[]{
-                clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.weights,null)
-        };
-        long[] biasesBuffer = new long[]{
-                clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.biases,null)
-        };
-        return new LayerBuffers(weightsBuffer,biasesBuffer);
+        return new LayerBuffers(
+                clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.weights,null),
+                clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.biases,null),
+                EVALUATE_LAYER_ID
+        );
+    }
+
+    @Override
+    public float[] getWeights() {
+        return weights;
+    }
+
+    @Override
+    public float[] getBiases() {
+        return biases;
     }
 }

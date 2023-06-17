@@ -10,6 +10,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, EvaluateLayer,SerializableToJsonLayer{
+
+    private static final int RESIDUAL_BLOCK_ID = 997;
+    public static final int RESIDUAL_ADD_ID = 286;
+    public static final int RESIDUAL_CONCAT_ID = 133;
     private AbstractLayer[] internalLayers;
     private ActivationFunction activationFunction;
     private ResidualMergeOperation residualMergeOperation;
@@ -193,23 +197,27 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     }
 
     @Override
-    public LayerBuffers createBuffer(long gpuContext) {
+    public AbstractLayer[] getAsLayerArray() {
         int depth = this.layerDepth();
-        long[] weightsBuffers = new long[depth];
-        long[] biasesBuffers = new long[depth];
+        AbstractLayer[] array = new AbstractLayer[depth];
+
+        array[0] = this;
+        array[depth-1] = this.residualMergeOperation;
 
         for (AbstractLayer internalLayer : this.internalLayers) {
-            LayerBuffers buffers = internalLayer.createBuffer(gpuContext);
+            AbstractLayer[] internalArray = internalLayer.getAsLayerArray();
 
-            long[] weights = buffers.weights();
-            long[] biases = buffers.biases();
-            for (int i = 0; i < weights.length; i++) {
-                weightsBuffers[i + 1 + internalLayer.getIndex()] = weights[i];
-                biasesBuffers[i + 1 + internalLayer.getIndex()] = biases[i];
+            for (int i = 0; i < internalArray.length; i++) {
+                array[i+1+internalLayer.getIndex()] = internalArray[i];
             }
         }
 
-        return new LayerBuffers(weightsBuffers,biasesBuffers);
+        return array;
+    }
+
+    @Override
+    public LayerBuffers createBuffer(long gpuContext) {
+        return new LayerBuffers(0,0,RESIDUAL_BLOCK_ID);
     }
 
     @Override
@@ -296,6 +304,13 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         public void serialize(JsonObject serialized) {
             serialized.addProperty("mergeNodes",this.nodeCount);
             serialized.addProperty("mergeInputs",this.inputLength);
+        }
+
+        public abstract int getType();
+
+        @Override
+        public LayerBuffers createBuffer(long gpuContext) {
+            return new LayerBuffers(0,0,getType());
         }
     }
 }
