@@ -192,6 +192,36 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         return depth;
     }
 
+    @Override
+    public LayerBuffers createBuffer(long gpuContext) {
+        int depth = this.layerDepth();
+        long[] weightsBuffers = new long[depth];
+        long[] biasesBuffers = new long[depth];
+
+        for (AbstractLayer internalLayer : this.internalLayers) {
+            LayerBuffers buffers = internalLayer.createBuffer(gpuContext);
+
+            long[] weights = buffers.weights();
+            long[] biases = buffers.biases();
+            for (int i = 0; i < weights.length; i++) {
+                weightsBuffers[i + 1 + internalLayer.getIndex()] = weights[i];
+                biasesBuffers[i + 1 + internalLayer.getIndex()] = biases[i];
+            }
+        }
+
+        return new LayerBuffers(weightsBuffers,biasesBuffers);
+    }
+
+    @Override
+    public void setIndex(int index) {
+        super.setIndex(index);
+        AbstractLayer[] layers = this.internalLayers;
+        for (int i = 0; i < layers.length; i++) {
+            AbstractLayer internalLayer = layers[i];
+            internalLayer.setIndex(i);
+        }
+    }
+
     public static abstract class ResidualMergeOperation extends AbstractLayer implements EvaluateLayer,NonFinalLayer{
         protected AbstractLayer internalPreviousLayer;
         protected final int inputLength;

@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.lwjgl.opencl.CL10.*;
+
 public abstract class AbstractEvaluateLayer extends AbstractLayer implements EvaluateLayer,SerializableToJsonLayer {
     protected AbstractLayer previousLayer;
     public float[] weights;
@@ -85,7 +87,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
         return activationDerivatives;
     }
-
 
     private final AtomicInteger weightAccumulations = new AtomicInteger(0);
     private final AtomicBoolean writingToWeightAccumulator = new AtomicBoolean(false);
@@ -288,5 +289,16 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     @Override
     public AbstractLayer getEnd() {
         return this;
+    }
+
+    @Override
+    public LayerBuffers createBuffer(long gpuContext) {
+        long[] weightsBuffer = new long[]{
+                clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.weights,null)
+        };
+        long[] biasesBuffer = new long[]{
+                clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.biases,null)
+        };
+        return new LayerBuffers(weightsBuffer,biasesBuffer);
     }
 }

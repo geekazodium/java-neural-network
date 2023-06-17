@@ -1,5 +1,7 @@
 package com.geekazodium.handdrawndigitstuff;
 
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractLayer;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.NeuralNetwork;
 import com.geekazodium.handdrawndigitstuff.utils.ConsoleStylizer;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
@@ -8,11 +10,17 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.lwjgl.opencl.CL30.*;
 
 public class GPUComputeContext {
+
+
+    public long[] weightBuffers;
+    public long[] biasBuffers;
+    public long layerTypeBuffer;
 
     private final long commandQueue;
     private final long gpuContext;
@@ -26,6 +34,24 @@ public class GPUComputeContext {
 
         long[] workDimLongs = getDeviceInfoLongs(gpuComputeDevice, CL_DEVICE_MAX_WORK_ITEM_SIZES);
         System.arraycopy(workDimLongs,0,deviceLocalMaxWorkSize,0,3);
+    }
+
+    public void createNetworkBuffers(int depth, NeuralNetwork neuralNetwork) {
+        this.weightBuffers = new long[depth];
+        this.biasBuffers = new long[depth];
+
+        for (AbstractLayer layer : neuralNetwork.layers) {
+            int index = layer.getIndex();
+            AbstractLayer.LayerBuffers buffer = layer.createBuffer(this.gpuContext);
+            long[] biases = buffer.biases();
+            long[] weights = buffer.weights();
+            for (int i = 0; i < biases.length; i++) {
+                this.weightBuffers[i+index] = weights[i];
+                this.biasBuffers[i+index] = biases[i];
+            }
+        }
+        System.out.println(Arrays.toString(weightBuffers));
+        System.out.println(Arrays.toString(biasBuffers));
     }
 
     private long getKernel(long gpuComputeDevice, String src, String kernelName) {

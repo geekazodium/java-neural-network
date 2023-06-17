@@ -18,7 +18,7 @@ public class NeuralNetwork {
     public static final String SAVE_PATH = "Deep_Tired_Network.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
-    private final AbstractLayer[] layers;
+    public final AbstractLayer[] layers;
     private float learnRate;
 
     public NeuralNetwork(InputLayer inputLayer, EvaluateLayer[] internalLayers, OutputLayer outputLayer){
@@ -308,8 +308,6 @@ public class NeuralNetwork {
     private int networkContext = DEFAULT_USE;
     private GPUComputeContext gpuComputeContext;
 
-    public long[] weightBuffers;
-    public long[] biasBuffers;
     //special case layers - enqueue different kernel
 
     public void useGPUTrainingContext() {
@@ -319,11 +317,10 @@ public class NeuralNetwork {
 
         int depth = getDepth();
 
-        weightBuffers = new long[depth];
-        biasBuffers = new long[depth];
+        uploadToGPU(depth);
 
         for (AbstractLayer layer : this.layers) {
-            System.out.println(layer.index);
+            System.out.println(layer.getIndex());
         }
     }
 
@@ -334,6 +331,9 @@ public class NeuralNetwork {
             depth += layer.layerDepth();
         }
         return depth;
+    }
+    public void uploadToGPU(int depth){
+        gpuComputeContext.createNetworkBuffers(depth,this);
     }
 
     public void closeGPUTrainingContext(){

@@ -3,7 +3,7 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 public abstract class AbstractLayer {
     public final int nodeCount;
     protected ActivationFunction activationFunction;
-    public int index;
+    private int index;
 
     public AbstractLayer(int nodes){
         this.nodeCount = nodes;
@@ -42,6 +42,20 @@ public abstract class AbstractLayer {
     }
 
     public void assignIndex(int depth) {
-        this.index = depth;
+        this.setIndex(depth);
     }
+
+    public LayerBuffers createBuffer(long gpuContext) {
+        return new LayerBuffers(new long[0],new long[0]);
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public void setIndex(int index) {
+        this.index = index;
+    }
+
+    public record LayerBuffers(long[] weights, long[] biases){}
 }
