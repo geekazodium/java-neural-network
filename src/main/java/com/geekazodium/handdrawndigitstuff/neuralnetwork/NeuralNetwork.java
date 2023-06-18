@@ -236,7 +236,7 @@ public class NeuralNetwork {
     }
 
     public static void main(String[] args) throws Exception {
-        int trainingThreadLimit = 4;
+        int trainingThreadLimit = 3;
 
         int inputSize = 128;
         TextSection.setInputLength(inputSize);
@@ -273,7 +273,7 @@ public class NeuralNetwork {
             neuralNetwork.serialize(new File(SAVE_PATH));
         }
 
-        neuralNetwork.useGPUTrainingContext();
+        //neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
         neuralNetwork.setLearnRate(1f/20f);
@@ -296,6 +296,9 @@ public class NeuralNetwork {
 
             neuralNetwork.serialize(new File(SAVE_PATH));
             testExample(trainingData,neuralNetwork);
+            if(batchCounter%3 == 2) {
+                Thread.sleep(1 * 60 * 1000);
+            }
         }
 
         neuralNetwork.closeGPUTrainingContext();
@@ -350,7 +353,8 @@ public class NeuralNetwork {
     private static void testExample(TrainingText trainingData, NeuralNetwork neuralNetwork) {
         StringBuilder s = new StringBuilder("why are you tired?");
         for (int c = 0; c < 128; c++) {
-            float[] outs = neuralNetwork.evaluate(TextSection.chunkString(s.toString(), trainingData.characterSet, trainingData.inverseCharset));
+            float[] inputs = TextSection.chunkString(s.toString(), trainingData.characterSet, trainingData.inverseCharset);
+            float[] outs = neuralNetwork.evaluate(inputs);
             int index = 0;
             float highest = -10;
             for (int i = 0; i < outs.length; i++) {
@@ -359,7 +363,7 @@ public class NeuralNetwork {
                     index = i;
                 }
             }
-            System.out.println(Arrays.toString(outs));
+            System.out.println(highest+","+Arrays.toString(outs));
             s.append(trainingData.inverseCharset.get(index));
             System.out.println(s.toString());
         }

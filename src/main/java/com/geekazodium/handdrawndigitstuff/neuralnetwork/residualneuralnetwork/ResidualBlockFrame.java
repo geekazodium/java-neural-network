@@ -121,6 +121,13 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     @Override
     public void init() {
+        initInternalLayers();
+        for (AbstractLayer internalLayer : this.internalLayers) {
+            ((EvaluateLayer) internalLayer).init();
+        }
+    }
+
+    public void initInternalLayers() {
         for (int i = 0; i < this.internalLayers.length; i++) {
             AbstractLayer internalLayer = this.internalLayers[i];
             if(i+1 > this.internalLayers.length-1){
@@ -136,9 +143,6 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
             }else {
                 ((NonInputLayer) internalLayer).setPreviousLayer(this.internalLayers[i-1]);
             }
-        }
-        for (AbstractLayer internalLayer : this.internalLayers) {
-            ((EvaluateLayer) internalLayer).init();
         }
     }
 
@@ -178,7 +182,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
             throw new RuntimeException(e);
         }
         this.setResidualMergeOperation(merge);
-        init();
+        this.initInternalLayers();
     }
 
     private static final Map<String,Class<? extends ResidualMergeOperation>> mergeOperations = new HashMap<>();
