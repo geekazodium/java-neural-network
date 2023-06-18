@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.lwjgl.opencl.CL10.*;
 
-public abstract class AbstractEvaluateLayer extends AbstractLayer implements EvaluateLayer,SerializableToJsonLayer {
+public abstract class AbstractEvaluateLayer extends AbstractLayer implements EvaluateLayer,SerializableToJsonLayer,EvaluateModifiableLayer {
     protected AbstractLayer previousLayer;
     public float[] weights;
     public float[] biases;
@@ -57,8 +57,13 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         return weightDerivatives;
     }
 
+    @Override
+    public void pushChanges(float learnRate) {
+        this.pushWeightAccumulator(learnRate);
+        this.pushBiasesAccumulator(learnRate);
+    }
 
-    public float[] asyncGetWeightDerivatives(float[] nodeDerivatives,float[] prevLayerNodes) {
+    public float[] asyncGetWeightDerivatives(float[] nodeDerivatives, float[] prevLayerNodes) {
 
         float[] weightDerivatives = new float[this.weights.length];
 

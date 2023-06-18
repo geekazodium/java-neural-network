@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, EvaluateLayer,SerializableToJsonLayer{
+public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, EvaluateLayer,SerializableToJsonLayer,EvaluateModifiableLayer{
 
     private static final int RESIDUAL_BLOCK_ID = 997;
     public static final int RESIDUAL_ADD_ID = 286;
@@ -105,6 +105,14 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
             gradient[i] += gradientRemaining.remaining[i];
         }
         return gradient;
+    }
+
+    @Override
+    public void pushChanges(float learnRate) {
+        for (AbstractLayer internalLayer : this.internalLayers) {
+            if(!(internalLayer instanceof EvaluateModifiableLayer modifiableLayer))continue;
+            modifiableLayer.pushChanges(learnRate);
+        }
     }
 
     private static class GradientRemaining {
