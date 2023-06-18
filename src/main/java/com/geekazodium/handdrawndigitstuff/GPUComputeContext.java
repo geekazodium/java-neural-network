@@ -107,7 +107,25 @@ public class GPUComputeContext {
         if(stackSize>1024)System.out.println("stack size is above 1024, be careful not to put too much into the gpu memory");
     }
 
+    public void stackInput(float[][] inputs){
+        int inputLayerSize = this.neuralNetworkLayers[0].nodeCount;
+        float[] stackedInputs = new float[inputs.length* inputLayerSize];
+        for (int layer = 0; layer < stackSize; layer++) {
+            float[] input = inputs[layer];
+            System.arraycopy(input,0,stackedInputs,layer*inputLayerSize,inputLayerSize);
+        }
+    }
+
+    /**
+     * *remember, this doesn't actually complete the set operation, you have to call clFinish to wait until this all is completed
+     * @param inputStack
+     */
     public void setInputs(float[] inputStack){
+        System.arraycopy(inputStack,0,layerStackedData[0],0,inputStack.length);
+        clEnqueueWriteBuffer(commandQueue,layerDataBuffers[0],false, 0,layerStackedData[0],null,null);
+    }
+
+    private void createStackedLayerBuffers() {
         layerDataBuffers = new long[this.neuralNetworkDepth];
         layerStackedData = new float[this.neuralNetworkDepth][];
         for (int i = 0; i < this.neuralNetworkLayers.length; i++) {
@@ -116,8 +134,6 @@ public class GPUComputeContext {
             layerStackedData[i] = layerStacked;
             layerDataBuffers[i] = clCreateBuffer(gpuContext,CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,layerStacked,null);
         }
-
-        System.arraycopy(inputStack,0,layerStackedData[0],0,inputStack.length);
     }
 
     private long getKernel(long gpuComputeDevice, String src, String kernelName) {
