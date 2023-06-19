@@ -147,9 +147,9 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     }
 
     @Override
-    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize) {
-        layerStackedData[getIndex()] = layerStackedData[getIndex()-1];
-        layerDataBuffers[getIndex()] = layerDataBuffers[getIndex()-1];
+    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize, int index) {
+        layerStackedData[getIndex()] = layerStackedData[index-1];
+        layerDataBuffers[getIndex()] = layerDataBuffers[index-1];
     }
 
     @Override

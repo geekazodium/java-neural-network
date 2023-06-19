@@ -77,11 +77,11 @@ public abstract class AbstractLayer {
         return null;
     }
 
-    public void setKernelArgs(long layerEvaluateKernel, long[] layerDataBuffers) {
-
+    public void setKernelArgs(long layerEvaluateKernel, float[][] layerData, int index) {
+        //throw new RuntimeException("can not set kernel args for layer without evaluate kernel");
     }
 
-    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize) {
+    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize,int index) {
         int layerStackedSize = nodeCount*stackSize;
         float[] layerStacked = new float[layerStackedSize];
         layerStackedData[index] = layerStacked;

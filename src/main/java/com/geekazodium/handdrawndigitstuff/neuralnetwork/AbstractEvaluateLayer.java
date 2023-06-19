@@ -298,6 +298,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     @Override
     public LayerBuffers createBuffer(long gpuContext) {
+
         return new LayerBuffers(
                 clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.weights,null),
                 clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.biases,null),
@@ -323,8 +324,8 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                         __constant float *biases,
                         __global float *previousLayer,
                         __global float *output,
-                        __constant int *layerSizePointer,
-                        __constant int *previousLayerSizePointer
+                        __constant int *previousLayerSizePointer,
+                        __constant int *layerSizePointer
                         ){
                     int neuron = get_global_id(0);
                     int stackLayer = get_global_id(1);
@@ -348,6 +349,16 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                 """;
         //System.out.println(kernelSrc);
         return kernelSrc;
+    }
+
+    @Override
+    public void setKernelArgs(long layerEvaluateKernel, float[][] layerData, int index) {
+        clSetKernelArg(layerEvaluateKernel,0,this.weights);
+        clSetKernelArg(layerEvaluateKernel,1,this.biases);
+        clSetKernelArg(layerEvaluateKernel,2,layerData[index-1]);
+        clSetKernelArg(layerEvaluateKernel,3,layerData[index]);
+        clSetKernelArg(layerEvaluateKernel,4,new int[this.previousLayer.nodeCount]);
+        clSetKernelArg(layerEvaluateKernel,5,new int[this.nodeCount]);
     }
 
     private String activationFunctionString(String result){

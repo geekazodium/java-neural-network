@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractLayer.EVALUATE_LAYER_ID;
@@ -123,32 +124,32 @@ public class GPUComputeContext {
      */
     public void setInputs(float[] inputStack){
         System.arraycopy(inputStack,0,layerStackedData[0],0,inputStack.length);
-        clEnqueueWriteBuffer(commandQueue,layerDataBuffers[0],false, 0,layerStackedData[0],null,null);
+        clEnqueueWriteBuffer(commandQueue,layerDataBuffers[0],true, 0,layerStackedData[0],null,null);
     }
 
-    private void createStackedLayerBuffers() {
+    public void createStackedLayerBuffers() {
         layerDataBuffers = new long[this.neuralNetworkDepth];
         layerStackedData = new float[this.neuralNetworkDepth][];
-        for (AbstractLayer neuralNetworkLayer : this.neuralNetworkLayers) {
-            neuralNetworkLayer.createLayerBuffer(layerDataBuffers, layerStackedData, gpuContext, stackSize);
+        AbstractLayer[] networkLayers = this.neuralNetworkLayers;
+        for (int i = 0; i < networkLayers.length; i++) {
+            AbstractLayer neuralNetworkLayer = networkLayers[i];
+            neuralNetworkLayer.createLayerBuffer(layerDataBuffers, layerStackedData, gpuContext, stackSize, i);
         }
-        updateKernelBuffers();
     }
 
-    public void updateKernelBuffers(){
+    public void setKernelArgs(){
         long[] evaluateKernels = this.layerEvaluateKernels;
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
             long layerEvaluateKernel = evaluateKernels[i];
-            neuralNetworkLayers[i].setKernelArgs(layerEvaluateKernel,this.layerDataBuffers);
+            neuralNetworkLayers[i].setKernelArgs(layerEvaluateKernel,this.layerStackedData,i);
         }
     }
-    public void evaluate(float[][] inputs){
-        float[] stackedInputs = stackInput(inputs);
-        setInputs(stackedInputs);
+    public void evaluate(){
         long[] evaluateKernels = this.layerEvaluateKernels;
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
             long layerEvaluateKernel = evaluateKernels[i];//todo evaluate neural network on gpu
             AbstractLayer layer = this.neuralNetworkLayers[i];
+            if(layerEvaluateKernel == 0)continue;
 
             PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(2);
             globalWorkSize.put(layer.nodeCount);
@@ -166,6 +167,10 @@ public class GPUComputeContext {
                     );
 
         }
+
+        clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[this.neuralNetworkDepth-1],true,0,this.layerStackedData[this.neuralNetworkDepth-1],null,null);
+        clFinish(this.commandQueue);
+        System.out.println(Arrays.toString(this.layerStackedData[this.neuralNetworkDepth - 1]));
     }
 
     private long getKernel(long gpuComputeDevice, String src, String kernelName) {
