@@ -444,7 +444,7 @@ public class NeuralNetwork {
         @Override
         public void trainOnData(Object trainingDataObject, NeuralNetwork neuralNetwork) {
             TextSection textSection = (TextSection) trainingDataObject;
-            for (int i = 0; i < TextSection.inputLength-1; i++) {
+            for (int i = 0; i < TextSection.inputLength; i++) {
                 System.out.println(i);
                 float[] in = this.inputFunction.createInputs(trainingDataObject,i);
                 TokenPredictionCost cost = new TokenPredictionCost();

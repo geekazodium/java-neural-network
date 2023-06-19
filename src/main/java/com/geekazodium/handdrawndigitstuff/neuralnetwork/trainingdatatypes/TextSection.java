@@ -1,7 +1,6 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -29,13 +28,13 @@ public class TextSection {
     }
 
     public float[] getData(int endIndex) {
-        return chunkData(endIndex,section,inverseCharset.size());
+        return chunkData(endIndex,section,inverseCharset.size(), section.size()-1);
     }
 
-    public static float[] chunkData(int endIndex, List<Integer> section, int charsetSize){
-        float[] data = new float[section.size()* charsetSize];
-        int index = (section.size()-endIndex-1)*charsetSize;
-        for (int i = 0; i < section.size(); i++) {
+    public static float[] chunkData(int endIndex, List<Integer> section, int charsetSize, int sectionSize){
+        float[] data = new float[sectionSize * charsetSize];
+        int index = (sectionSize-endIndex-1)*charsetSize;
+        for (int i = 0; i < sectionSize; i++) {
             if(i>endIndex)break;
             Integer integer = section.get(i);
             if(integer<0)continue;
@@ -58,6 +57,7 @@ public class TextSection {
             }
             tokenized.add(charset.get(s.charAt(i+index)));
         }
-        return chunkData(inputLength-1,new ArrayList<>(tokenized),inverseCharset.size());
+        final ArrayList<Integer> section1 = new ArrayList<>(tokenized);
+        return chunkData(inputLength-1, section1,inverseCharset.size(), section1.size());
     }
 }
