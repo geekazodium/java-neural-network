@@ -148,7 +148,7 @@ public class NeuralNetwork {
 
     private int batchCount = 0;
 
-    public void serialize(File file){
+    public void serialize(File file){ //TODO find more RAM efficient way to store neural network in a file
         JsonObject object = new JsonObject();
 
         object.addProperty("batchCount",batchCount);

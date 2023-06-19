@@ -1,5 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
+import static org.lwjgl.opencl.CL30.*;
+
 public abstract class AbstractLayer {
     public static final int ABSTRACT_LAYER_ID = 742;
     public static final int EVALUATE_LAYER_ID = 880;
@@ -73,6 +75,17 @@ public abstract class AbstractLayer {
 
     public String getEvaluateKernelSrc() {
         return null;
+    }
+
+    public void setKernelArgs(long layerEvaluateKernel, long[] layerDataBuffers) {
+
+    }
+
+    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize) {
+        int layerStackedSize = nodeCount*stackSize;
+        float[] layerStacked = new float[layerStackedSize];
+        layerStackedData[index] = layerStacked;
+        layerDataBuffers[index] = clCreateBuffer(gpuContext,CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,layerStacked,null);
     }
 
     public record LayerBuffers(long weights, long biases, int types){}
