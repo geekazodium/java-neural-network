@@ -100,8 +100,8 @@ public class GPUComputeContext {
 
     private int stackSize = 0;
 
-    long[] layerDataBuffers;
-    float[][] layerStackedData;
+    public long[] layerDataBuffers;
+    public float[][] layerStackedData;
 
     public void setStackSize(int stackSize){
         this.stackSize = stackSize;
@@ -125,6 +125,7 @@ public class GPUComputeContext {
     public void setInputs(float[] inputStack){
         System.arraycopy(inputStack,0,layerStackedData[0],0,inputStack.length);
         clEnqueueWriteBuffer(commandQueue,layerDataBuffers[0],true, 0,layerStackedData[0],null,null);
+        clFinish(commandQueue);
     }
 
     public void createStackedLayerBuffers() {
@@ -141,7 +142,7 @@ public class GPUComputeContext {
         long[] evaluateKernels = this.layerEvaluateKernels;
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
             long layerEvaluateKernel = evaluateKernels[i];
-            neuralNetworkLayers[i].setKernelArgs(layerEvaluateKernel,this.layerStackedData,i);
+            neuralNetworkLayers[i].setKernelArgs(layerEvaluateKernel,this, this.layerStackedData, i);
         }
     }
     public void evaluate(){
@@ -149,6 +150,7 @@ public class GPUComputeContext {
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
             long layerEvaluateKernel = evaluateKernels[i];//todo evaluate neural network on gpu
             AbstractLayer layer = this.neuralNetworkLayers[i];
+
             if(layerEvaluateKernel == 0)continue;
 
             PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(2);
@@ -156,27 +158,22 @@ public class GPUComputeContext {
             globalWorkSize.put(stackSize);
             globalWorkSize.rewind();
 
-            PointerBuffer localWorkSize = BufferUtils.createPointerBuffer(2);
-            localWorkSize.put(layer.nodeCount);
-            localWorkSize.put(stackSize);
-            localWorkSize.rewind();
-
             clEnqueueNDRangeKernel(
                     this.commandQueue, layerEvaluateKernel, 2,
-                    null, globalWorkSize, localWorkSize,null,null
+                    null, globalWorkSize,null,null,null
                     );
 
+            clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[i],true,0,this.layerStackedData[i],null,null);
         }
 
-        clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[this.neuralNetworkDepth-1],true,0,this.layerStackedData[this.neuralNetworkDepth-1],null,null);
         clFinish(this.commandQueue);
-        System.out.println(Arrays.toString(this.layerStackedData[this.neuralNetworkDepth - 1]));
+        //System.out.println(Arrays.toString(this.layerStackedData[this.neuralNetworkDepth - 1]));
     }
 
     private long getKernel(long gpuComputeDevice, String src, String kernelName) {
-        long computeMatrixMultiplyProgram = compileProgram(gpuComputeDevice, gpuContext, src);
+        long program = compileProgram(gpuComputeDevice, gpuContext, src);
         IntBuffer result = BufferUtils.createIntBuffer(1);
-        final long kernel = clCreateKernel(computeMatrixMultiplyProgram, kernelName, result);
+        final long kernel = clCreateKernel(program, kernelName, result);
         checkIfSuccess(result, "create kernel");
         return kernel;
     }
@@ -328,5 +325,13 @@ public class GPUComputeContext {
     public void delete() {
         clReleaseContext(this.gpuContext);
         clReleaseCommandQueue(this.commandQueue);
+    }
+
+    public long getGPUContext() {
+        return this.gpuContext;
+    }
+
+    public long getCommandQueue() {
+        return commandQueue;
     }
 }

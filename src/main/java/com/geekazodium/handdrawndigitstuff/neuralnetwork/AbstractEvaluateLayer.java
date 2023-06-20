@@ -1,12 +1,13 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
+import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.lwjgl.opencl.CL10.*;
+import static org.lwjgl.opencl.CL30.*;
 
 public abstract class AbstractEvaluateLayer extends AbstractLayer implements EvaluateLayer,SerializableToJsonLayer,EvaluateModifiableLayer {
     protected AbstractLayer previousLayer;
@@ -318,7 +319,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     @Override
     public String getEvaluateKernelSrc() {
-        String kernelSrc = """
+        String kernelSrc = """ 
                 __kernel void evaluate(
                         __constant float *weights,
                         __constant float *biases,
@@ -351,14 +352,27 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         return kernelSrc;
     }
 
+    long prevLayerNodeCountBuffer = 0;
+    long layerNodeCountBuffer = 0;
+
     @Override
-    public void setKernelArgs(long layerEvaluateKernel, float[][] layerData, int index) {
-        clSetKernelArg(layerEvaluateKernel,0,this.weights);
-        clSetKernelArg(layerEvaluateKernel,1,this.biases);
-        clSetKernelArg(layerEvaluateKernel,2,layerData[index-1]);
-        clSetKernelArg(layerEvaluateKernel,3,layerData[index]);
-        clSetKernelArg(layerEvaluateKernel,4,new int[this.previousLayer.nodeCount]);
-        clSetKernelArg(layerEvaluateKernel,5,new int[this.nodeCount]);
+    public void setKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
+
+        if(prevLayerNodeCountBuffer == 0) {
+            int[] _prevLayerNodeCount = new int[]{this.previousLayer.nodeCount};
+            int[] _layerNodeCount = new int[]{this.nodeCount};
+
+            prevLayerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _prevLayerNodeCount, null);
+            layerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _layerNodeCount, null);
+        }
+
+        clSetKernelArg(layerEvaluateKernel,0,new long[]{context.weightBuffers[index]});
+        clSetKernelArg(layerEvaluateKernel,1,new long[]{context.biasBuffers[index]});
+        clSetKernelArg(layerEvaluateKernel,2,new long[]{context.layerDataBuffers[index-1]});
+        clSetKernelArg(layerEvaluateKernel,3,new long[]{context.layerDataBuffers[index]});
+        clSetKernelArg(layerEvaluateKernel,4,new long[]{prevLayerNodeCountBuffer});
+        clSetKernelArg(layerEvaluateKernel,5,new long[]{layerNodeCountBuffer});
+
     }
 
     private String activationFunctionString(String result){

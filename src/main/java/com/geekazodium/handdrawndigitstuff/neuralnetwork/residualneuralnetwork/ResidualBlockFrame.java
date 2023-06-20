@@ -24,6 +24,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         super(inNodes);
         this.residualMergeOperation = residualMergeOperation;
         this.internalLayers = internalLayers;
+        this.residualMergeOperation.setResidualBlockFrame(this);
     }
 
     public ResidualBlockFrame(int inNodes) {
@@ -36,6 +37,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     public void setResidualMergeOperation(ResidualMergeOperation mergeOperation){
         this.residualMergeOperation = mergeOperation;
+        this.residualMergeOperation.setResidualBlockFrame(this);
     }
 
     @Override
@@ -148,8 +150,8 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     @Override
     public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize, int index) {
-        layerStackedData[getIndex()] = layerStackedData[index-1];
-        layerDataBuffers[getIndex()] = layerDataBuffers[index-1];
+        layerStackedData[index] = layerStackedData[index-1];
+        layerDataBuffers[index] = layerDataBuffers[index-1];
     }
 
     @Override
@@ -251,10 +253,15 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     public static abstract class ResidualMergeOperation extends AbstractLayer implements EvaluateLayer,NonFinalLayer{
         protected AbstractLayer internalPreviousLayer;
         protected final int inputLength;
+        protected ResidualBlockFrame residualBlockFrame;
         protected EvaluateLayer nextLayer;
         public ResidualMergeOperation(int nodes,int inputLength) {
             super(nodes);
             this.inputLength = inputLength;
+        }
+
+        public void setResidualBlockFrame(ResidualBlockFrame residualBlockFrame) {
+            this.residualBlockFrame = residualBlockFrame;
         }
 
         public ResidualMergeOperation(JsonObject object){

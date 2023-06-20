@@ -236,7 +236,7 @@ public class NeuralNetwork {
     }
 
     public static void main(String[] args) throws Exception {
-        //int trainingThreadLimit = 3;
+        //int trainingThreadLimit = 4;
 
         int inputSize = 128;
         TextSection.setInputLength(inputSize);
@@ -274,10 +274,12 @@ public class NeuralNetwork {
         }
         int stackSize = 5120;
 
+        //int batchSize = 12;
+
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(1f/20f);
+        neuralNetwork.setLearnRate(1f/5f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();
@@ -287,9 +289,21 @@ public class NeuralNetwork {
         TextSection section = trainingData.getExample();
         section.log();
 
-        testExample(trainingData, neuralNetwork);
+        //testExample(trainingData, neuralNetwork);
 
         for (int batchCounter = 0; batchCounter < 10000; batchCounter++) {
+//            long startTime = System.currentTimeMillis();
+//            neuralNetwork.batchMultithreaded(
+//                    trainingData.getExamples(batchSize),
+//                    new TokenPredictionTrainingFunction(),
+//                    trainingThreadLimit
+//            );
+//            long now = System.currentTimeMillis();
+//            System.out.println("batch #"+(batchCounter+1)+" completed in:"+(now-startTime)+"ms");
+//
+//            neuralNetwork.serialize(new File(SAVE_PATH));
+//            testExample(trainingData,neuralNetwork);
+
             float[][] inputs = new float[stackSize][];
             for (int i = 0; i < stackSize; i++) {
                 int characterIndex = i%inputSize;

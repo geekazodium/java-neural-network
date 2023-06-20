@@ -1,5 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
+import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
+
 import static org.lwjgl.opencl.CL30.*;
 
 public abstract class AbstractLayer {
@@ -77,15 +79,15 @@ public abstract class AbstractLayer {
         return null;
     }
 
-    public void setKernelArgs(long layerEvaluateKernel, float[][] layerData, int index) {
+    public void setKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
         //throw new RuntimeException("can not set kernel args for layer without evaluate kernel");
     }
 
-    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize,int index) {
+    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize, int index) {
         int layerStackedSize = nodeCount*stackSize;
         float[] layerStacked = new float[layerStackedSize];
         layerStackedData[index] = layerStacked;
-        layerDataBuffers[index] = clCreateBuffer(gpuContext,CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,layerStacked,null);
+        layerDataBuffers[index] = clCreateBuffer(gpuContext,CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,layerStacked,null);
     }
 
     public record LayerBuffers(long weights, long biases, int types){}

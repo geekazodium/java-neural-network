@@ -124,27 +124,27 @@ public class GPUMatrixComputeContext {
         int width = resultMatrix.width;
         int height = resultMatrix.height;
 
-        int localWidth = Math.min(localWorkKernelSize, width);
-        int localHeight = Math.min(localWorkKernelSize, height);
+//        int localWidth = Math.min(localWorkKernelSize, width);
+//        int localHeight = Math.min(localWorkKernelSize, height);
 
-        if(width%localWidth > 0){
-            width += localWidth-width%localWidth;
-        }
-        if(height%localHeight > 0){
-            height += localHeight-height%localHeight;
-        }
-
+//        if(width%localWidth > 0){
+//            width += localWidth-width%localWidth;
+//        }
+//        if(height%localHeight > 0){
+//            height += localHeight-height%localHeight;
+//        }
+//
         globalWorkSize.put(width);
         globalWorkSize.put(height);
-        localWorkSize.put(localWidth);
-        localWorkSize.put(localHeight);
+//        localWorkSize.put(localWidth);
+//        localWorkSize.put(localHeight);
 
         globalWorkSize.rewind();
         localWorkSize.rewind();
 
         clEnqueueNDRangeKernel(
                 commandQueue,computeMatrixMultiplyKernel,2,
-                null,globalWorkSize,localWorkSize,
+                null,globalWorkSize,null,
                 null, null
         );
 
