@@ -163,11 +163,11 @@ public class GPUComputeContext {
                     null, globalWorkSize,null,null,null
                     );
 
-            clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[i],true,0,this.layerStackedData[i],null,null);
         }
 
+        clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[this.neuralNetworkDepth - 1],true,0,this.layerStackedData[this.neuralNetworkDepth - 1],null,null);
         clFinish(this.commandQueue);
-        //System.out.println(Arrays.toString(this.layerStackedData[this.neuralNetworkDepth - 1]));
+        System.out.println(Arrays.toString(this.layerStackedData[this.neuralNetworkDepth - 1]));
     }
 
     private long getKernel(long gpuComputeDevice, String src, String kernelName) {
