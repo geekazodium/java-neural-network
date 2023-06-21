@@ -100,8 +100,17 @@ public class GPUComputeContext {
 
     private int stackSize = 0;
 
+    public BackPropagateKernels[] backPropagateKernels;
+
     public long[] layerDataBuffers;
+    public long[] preActivationBuffers;
+    public long[] layerGradientBuffers;
     public float[][] layerStackedData;
+
+    public static abstract class BackPropagateKernels {
+        public abstract long[] getKernels();
+
+    }
 
     public void setStackSize(int stackSize){
         this.stackSize = stackSize;
@@ -131,10 +140,19 @@ public class GPUComputeContext {
     public void createStackedLayerBuffers() {
         layerDataBuffers = new long[this.neuralNetworkDepth];
         layerStackedData = new float[this.neuralNetworkDepth][];
+        preActivationBuffers = new long[this.neuralNetworkDepth];
+        layerGradientBuffers = new long[this.neuralNetworkDepth];
+
         AbstractLayer[] networkLayers = this.neuralNetworkLayers;
         for (int i = 0; i < networkLayers.length; i++) {
             AbstractLayer neuralNetworkLayer = networkLayers[i];
-            neuralNetworkLayer.createLayerBuffer(layerDataBuffers, layerStackedData, gpuContext, stackSize, i);
+            neuralNetworkLayer.createLayerBuffer(layerDataBuffers, layerStackedData, this, stackSize, i);
+        }
+    }
+
+    public void createBackpropagationKernels(){
+        for (int i = 0; i < this.neuralNetworkLayers.length; i++) {
+            backPropagateKernels[i] = neuralNetworkLayers[i].createBackpropagationKernels(this, i);
         }
     }
 
@@ -145,6 +163,7 @@ public class GPUComputeContext {
             neuralNetworkLayers[i].setEvaluateKernelArgs(layerEvaluateKernel,this, this.layerStackedData, i);
         }
     }
+
     public void evaluate(){
         long[] evaluateKernels = this.layerEvaluateKernels;
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
@@ -184,6 +203,10 @@ public class GPUComputeContext {
         final long kernel = clCreateKernel(program, kernelName, result);
         checkIfSuccess(result, "create kernel");
         return kernel;
+    }
+
+    public long getKernel(String src, String kernelName){
+        return this.getKernel(gpuComputeDevice,src,kernelName);
     }
 
     private static long compileProgram(long device, long context,String src) {

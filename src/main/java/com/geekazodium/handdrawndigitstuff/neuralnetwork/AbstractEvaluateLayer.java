@@ -299,12 +299,17 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     @Override
     public LayerBuffers createBuffer(long gpuContext) {
-
         return new LayerBuffers(
                 clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.weights,null),
                 clCreateBuffer(gpuContext,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, this.biases,null),
                 EVALUATE_LAYER_ID
         );
+    }
+
+    @Override
+    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, GPUComputeContext gpuContext, int stackSize, int index) {
+        super.createLayerBuffer(layerDataBuffers, layerStackedData, gpuContext, stackSize, index);
+        gpuContext.preActivationBuffers[index] = clCreateBuffer(gpuContext.getGPUContext(),CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,new float[stackSize*this.nodeCount],null);
     }
 
     @Override
@@ -324,6 +329,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                         __constant float *weights,
                         __constant float *biases,
                         __global float *previousLayer,
+                        __global float *preActivation,
                         __global float *output,
                         __constant int *previousLayerSizePointer,
                         __constant int *layerSizePointer
@@ -345,11 +351,100 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                         result += weights[p + neuron * previousLayerSize] * previousLayer[p + stackOffset];
                     }
                     
+                    preActivation[resultLocation] = result;
                     output[resultLocation] = """ + activationFunctionString("result") + """
                 }
                 """;
         //System.out.println(kernelSrc);
         return kernelSrc;
+    }
+
+    @Override
+    public GPUComputeContext.BackPropagateKernels createBackpropagationKernels(GPUComputeContext context, int index){
+        String nodeGradientsSrc = """ 
+                __kernel void getLayerNodeGradient(
+                        __constant float *preActivation,
+                        __constant float *activationGradients,
+                        __global float *biasGradient,
+                        __constant int *layerSizePointer
+                        ){
+                    int neuron = get_global_id(0);
+                    int stackLayer = get_global_id(1);
+                    
+                    int layerSize = layerSizePointer[0];
+                    
+                    int stackOffset = layerSize * stackLayer;
+                    
+                    biasGradient[stackOffset + neuron] = activationGradients[stackOffset + neuron] * """+ activationGradientString("preActivation[stackOffset + neuron]")+"""
+                }
+                """;
+
+        String prevLayerGradientsSrc = """ 
+                __kernel void getGradientsFromNodeGradient(
+                        __constant float *nodeGradients, //equal to biasGradients
+                        __constant float *previousLayerActivations,
+                        __constant float *weightBuffers,
+                        __global float *previousLayerActivationGradient,
+                        __global float *weightGradient,
+                        __constant int *previousLayerSizePointer,
+                        __constant int *layerSizePointer
+                        ){
+                    int previousLayerNeuron = get_global_id(0);
+                    int stackLayer = get_global_id(1);
+                    
+                    int previousLayerSize = previousLayerSizePointer[0];
+                    int previousLayerStackOffset = previousLayerSize * stackLayer;
+                    
+                    int layerSize = layerSizePointer[0];
+                    int stackOffset = layerSize * stackLayer;
+                    
+                    int weightStackOffset = stackOffset * previousLayerSize;
+                    
+                    previousLayerActivationGradient[previousLayerNeuron + previousLayerStackOffset] = 0;
+                    
+                    float prevNodeActivation = previousLayerActivations[previousLayerNeuron + previousLayerStackOffset];
+                    
+                    for (int n = 0;n < layerSize; n++){// the previous node activation is the derivative of the weight to the value before activation f()
+                        float nodeGradient = nodeGradients[n + stackOffset];
+                        previousLayerActivationGradient[previousLayerNeuron + previousLayerStackOffset] +=
+                                nodeGradient *
+                                weightBuffers[previousLayerNeuron + n * previousLayerSize + weightStackOffset];
+                        weightGradient[previous + n * previousLayerSize + weightStackOffset] =
+                                nodeGradient *
+                                prevNodeActivation;
+                    }
+                    
+                }
+                """;
+        long layerNodeGradientKernel = context.getKernel(nodeGradientsSrc, "getLayerNodeGradient");
+        long layerWeightGradientKernel = context.getKernel(prevLayerGradientsSrc, "getGradientsFromNodeGradient");
+
+        long gpuContext = context.getGPUContext();
+        long nodeGradientBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, new float[this.nodeCount], null);
+        long weightGradientBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, new float[this.nodeCount * this.previousLayer.nodeCount], null);
+
+        clSetKernelArg(layerNodeGradientKernel,0,new long[]{context.preActivationBuffers[index]});
+        clSetKernelArg(layerNodeGradientKernel,1,new long[]{context.layerGradientBuffers[index]});
+        clSetKernelArg(layerNodeGradientKernel,2,new long[]{nodeGradientBuffer});
+        clSetKernelArg(layerNodeGradientKernel,3,new long[]{layerNodeCountBuffer});
+
+        return new EvaluateBackpropagateKernel(layerNodeGradientKernel,layerWeightGradientKernel);
+    }
+
+    private static class EvaluateBackpropagateKernel extends GPUComputeContext.BackPropagateKernels{
+
+        private final long nodeGradientKernel;
+        private final long weightGradientKernel;
+
+        public EvaluateBackpropagateKernel(long nodeGradientKernel, long weightGradientKernel){
+            this.nodeGradientKernel = nodeGradientKernel;
+            this.weightGradientKernel = weightGradientKernel;
+        }
+
+        @Override
+        public long[] getKernels() {
+            return new long[]{nodeGradientKernel,weightGradientKernel};
+        }
     }
 
     long prevLayerNodeCountBuffer = 0;
@@ -368,9 +463,10 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         clSetKernelArg(layerEvaluateKernel,0,new long[]{context.weightBuffers[index]});
         clSetKernelArg(layerEvaluateKernel,1,new long[]{context.biasBuffers[index]});
         clSetKernelArg(layerEvaluateKernel,2,new long[]{context.layerDataBuffers[index-1]});
-        clSetKernelArg(layerEvaluateKernel,3,new long[]{context.layerDataBuffers[index]});
-        clSetKernelArg(layerEvaluateKernel,4,new long[]{prevLayerNodeCountBuffer});
-        clSetKernelArg(layerEvaluateKernel,5,new long[]{layerNodeCountBuffer});
+        clSetKernelArg(layerEvaluateKernel,3,new long[]{context.preActivationBuffers[index]});
+        clSetKernelArg(layerEvaluateKernel,4,new long[]{context.layerDataBuffers[index]});
+        clSetKernelArg(layerEvaluateKernel,5,new long[]{prevLayerNodeCountBuffer});
+        clSetKernelArg(layerEvaluateKernel,6,new long[]{layerNodeCountBuffer});
 
     }
 

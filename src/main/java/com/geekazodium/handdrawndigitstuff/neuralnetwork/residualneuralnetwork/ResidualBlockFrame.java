@@ -1,5 +1,6 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
+import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.*;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -149,7 +150,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     }
 
     @Override
-    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize, int index) {
+    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, GPUComputeContext gpuContext, int stackSize, int index) {
         layerStackedData[index] = layerStackedData[index-1];
         layerDataBuffers[index] = layerDataBuffers[index-1];
     }

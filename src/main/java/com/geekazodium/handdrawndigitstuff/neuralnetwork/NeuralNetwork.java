@@ -285,6 +285,7 @@ public class NeuralNetwork {
         gpuComputeContext.createNetworkBuffers();
         gpuComputeContext.createStackedLayerBuffers();
         gpuComputeContext.setKernelArgs();
+        gpuComputeContext.createBackpropagationKernels();
 
         TextSection section = trainingData.getExample();
         section.log();

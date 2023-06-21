@@ -83,11 +83,16 @@ public abstract class AbstractLayer {
         //throw new RuntimeException("can not set kernel args for layer without evaluate kernel");
     }
 
-    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, long gpuContext, int stackSize, int index) {
+    public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, GPUComputeContext gpuContext, int stackSize, int index) {
         int layerStackedSize = nodeCount*stackSize;
         float[] layerStacked = new float[layerStackedSize];
         layerStackedData[index] = layerStacked;
-        layerDataBuffers[index] = clCreateBuffer(gpuContext,CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,layerStacked,null);
+        layerDataBuffers[index] = clCreateBuffer(gpuContext.getGPUContext(),CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,layerStacked,null);
+    }
+
+    public GPUComputeContext.BackPropagateKernels createBackpropagationKernels(GPUComputeContext context, int index){
+
+        return null;
     }
 
     public record LayerBuffers(long weights, long biases, int types){}
