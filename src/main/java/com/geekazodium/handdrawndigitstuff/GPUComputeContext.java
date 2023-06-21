@@ -142,13 +142,13 @@ public class GPUComputeContext {
         long[] evaluateKernels = this.layerEvaluateKernels;
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
             long layerEvaluateKernel = evaluateKernels[i];
-            neuralNetworkLayers[i].setKernelArgs(layerEvaluateKernel,this, this.layerStackedData, i);
+            neuralNetworkLayers[i].setEvaluateKernelArgs(layerEvaluateKernel,this, this.layerStackedData, i);
         }
     }
     public void evaluate(){
         long[] evaluateKernels = this.layerEvaluateKernels;
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
-            long layerEvaluateKernel = evaluateKernels[i];//todo evaluate neural network on gpu
+            long layerEvaluateKernel = evaluateKernels[i];
             AbstractLayer layer = this.neuralNetworkLayers[i];
 
             if(layerEvaluateKernel == 0)continue;
@@ -161,13 +161,21 @@ public class GPUComputeContext {
             clEnqueueNDRangeKernel(
                     this.commandQueue, layerEvaluateKernel, 2,
                     null, globalWorkSize,null,null,null
-                    );
-
+            );
         }
 
-        clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[this.neuralNetworkDepth - 1],true,0,this.layerStackedData[this.neuralNetworkDepth - 1],null,null);
+        for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
+            long layerEvaluateKernel = evaluateKernels[i];
+            if(layerEvaluateKernel == 0)continue;
+            clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[i],true,0,this.layerStackedData[i],null,null);
+        }
+
         clFinish(this.commandQueue);
-        System.out.println(Arrays.toString(this.layerStackedData[this.neuralNetworkDepth - 1]));
+        for (float[] layerStackedData : this.layerStackedData) {
+            float[] loggedArray = new float[1024];
+            System.arraycopy(layerStackedData,0,loggedArray,0,1024);
+            System.out.println(Arrays.toString(loggedArray));
+        }
     }
 
     private long getKernel(long gpuComputeDevice, String src, String kernelName) {

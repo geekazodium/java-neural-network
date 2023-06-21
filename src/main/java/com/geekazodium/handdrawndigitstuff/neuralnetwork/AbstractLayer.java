@@ -79,7 +79,7 @@ public abstract class AbstractLayer {
         return null;
     }
 
-    public void setKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
+    public void setEvaluateKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
         //throw new RuntimeException("can not set kernel args for layer without evaluate kernel");
     }
 

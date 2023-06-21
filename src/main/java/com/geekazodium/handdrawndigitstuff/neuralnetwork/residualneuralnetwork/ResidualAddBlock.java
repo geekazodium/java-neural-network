@@ -100,7 +100,7 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
     private long blockStartPositionBuffer;
     private long residualInputSizeBuffer;
     @Override
-    public void setKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
+    public void setEvaluateKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
         if(prevLayerNodeCountBuffer == 0) {
             int[] residualInputSize = {this.residualBlockFrame.nodeCount};
             int[] blockStartPosition = {this.startPosition};

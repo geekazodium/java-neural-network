@@ -356,8 +356,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     long layerNodeCountBuffer = 0;
 
     @Override
-    public void setKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
-
+    public void setEvaluateKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
         if(prevLayerNodeCountBuffer == 0) {
             int[] _prevLayerNodeCount = new int[]{this.previousLayer.nodeCount};
             int[] _layerNodeCount = new int[]{this.nodeCount};
@@ -377,5 +376,9 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     private String activationFunctionString(String result){
         return " ("+result+">0)?"+result+":"+result+"* 0.01f;\n";
+    }
+
+    private String activationGradientString(String result){
+        return " ("+result+">0)? 1f : 0.01f;\n";
     }
 }
