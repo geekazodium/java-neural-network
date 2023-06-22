@@ -501,8 +501,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         resultList.add(clSetKernelArg(parameterAdjustKernel,6,pointerOf(context.getLearnRatePointer())));
         resultList.add(clSetKernelArg(parameterAdjustKernel,7,pointerOf(context.getStackSizePointer())));
 
-        System.out.println(Arrays.toString(resultList.toArray()));
-
         return new EvaluateBackpropagateKernel(layerNodeGradientKernel,layerWeightGradientKernel,this.nodeCount,this.previousLayer.nodeCount,parameterAdjustKernel,this);
     }
 

@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "Deep_Tired_Network.json";
+    public static final String SAVE_PATH = "Send_Help.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     public final AbstractLayer[] layers;
@@ -225,18 +225,18 @@ public class NeuralNetwork {
                     new InputLayer(inputNeurons),
                     new EvaluateLayer[]{
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
-                                    new HiddenLayer(10),
-                                    new HiddenLayer(10),
-                                    new HiddenLayer(10)
-                            }, ResidualConcatBlock.instantiate(inputNeurons,10)),
-                            new ResidualBlockFrame(inputNeurons+10, new AbstractLayer[]{
-                                    new HiddenLayer(10),
-                                    new HiddenLayer(10),
-                                    new HiddenLayer(10)
-                            }, new ResidualAddBlock(inputNeurons+10,10,0)),
-                            new HiddenLayer(20),
-                            new HiddenLayer(20),
-                            new HiddenLayer(20)
+                                    new HiddenLayer(512),
+                                    new HiddenLayer(256),
+                                    new HiddenLayer(128)
+                            }, ResidualConcatBlock.instantiate(inputNeurons,128)),
+                            new ResidualBlockFrame(inputNeurons+128, new AbstractLayer[]{
+                                    new HiddenLayer(512),
+                                    new HiddenLayer(256),
+                                    new HiddenLayer(128)
+                            }, new ResidualAddBlock(inputNeurons+128,128,0)),
+                            new HiddenLayer(512),
+                            new HiddenLayer(256),
+                            new HiddenLayer(128)
                     },
                     new OutputLayer(outputNeurons)
             );
@@ -298,7 +298,9 @@ public class NeuralNetwork {
             gpuComputeContext.train();
             System.out.println("");
             testExample(trainingData, neuralNetwork);
-            Thread.sleep(1000);
+            if(batchCounter % 4 == 0){
+                neuralNetwork.serialize(new File(SAVE_PATH));
+            }
         }
 
         neuralNetwork.closeGPUTrainingContext();
