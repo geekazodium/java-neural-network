@@ -220,14 +220,15 @@ public class GPUComputeContext {
         }
 
         float[][] stackedData = this.layerStackedData;
-        for (int j = 0; j < stackedData.length; j++) {
+        for (int j = 0; j < stackedData.length && j < 4; j++) {
             float[] layerStackedData = stackedData[j];
 //            float[] loggedArray = new float[1024];
 //            System.arraycopy(layerStackedData,0,loggedArray,0,1024);
-            for (int i = 0; i < layerStackedData.length; i++) {
-                if ((i % neuralNetworkLayers[j].nodeCount) == 0) System.out.println();
+            for (int i = 0; i < layerStackedData.length && i < 2048; i++) {
+                if ((i % neuralNetworkLayers[j].nodeCount) == 0) System.out.println("\n");
                 System.out.print(layerStackedData[i] + " ");
             }
+            System.out.println("\n");
         }
         clFinish(this.commandQueue);
     }

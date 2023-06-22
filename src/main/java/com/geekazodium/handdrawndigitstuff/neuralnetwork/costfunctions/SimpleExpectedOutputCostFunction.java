@@ -3,6 +3,7 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions;
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.CostFunction;
 
+import static com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractLayer.pointerOf;
 import static org.lwjgl.opencl.CL30.*;
 
 public class SimpleExpectedOutputCostFunction implements CostFunction {
@@ -57,14 +58,15 @@ public class SimpleExpectedOutputCostFunction implements CostFunction {
                 """;
 
         long costKernel = context.getKernel(src, "cost");
-        clSetKernelArg(costKernel,0,new long[]{expectedResultsBuffer});
-        clSetKernelArg(costKernel,1,new long[]{context.layerDataBuffers[context.neuralNetworkLayers.length-1]});
-        clSetKernelArg(costKernel,2,new long[]{context.layerGradientBuffers[context.neuralNetworkLayers.length-1]});
-        clSetKernelArg(costKernel,3,new long[]{this.costBuffer});
+        clSetKernelArg(costKernel,0,pointerOf(expectedResultsBuffer));
+        clSetKernelArg(costKernel,1,pointerOf(context.layerDataBuffers[context.neuralNetworkLayers.length-1]));
+        clSetKernelArg(costKernel,2,pointerOf(context.layerGradientBuffers[context.neuralNetworkLayers.length-1]));
+        clSetKernelArg(costKernel,3,pointerOf(this.costBuffer));
         long layerSizeBuffer = context.neuralNetworkLayers[context.neuralNetworkLayers.length - 1].getLayerSizeBuffer();
         if(layerSizeBuffer == 0)throw new RuntimeException("null pointer arg can create undefined behavior.");
-        clSetKernelArg(costKernel,4,new long[]{layerSizeBuffer});
+        clSetKernelArg(costKernel,4,pointerOf(layerSizeBuffer));
 
         return costKernel;
     }
+
 }

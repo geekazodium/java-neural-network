@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "Deep_Testing_network.json";
+    public static final String SAVE_PATH = "Deep_Tired_Network.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     public final AbstractLayer[] layers;
@@ -208,7 +208,7 @@ public class NeuralNetwork {
     public static void main(String[] args) throws Exception {
         //int trainingThreadLimit = 4;
 
-        int inputSize = 2;
+        int inputSize = 128;
         TextSection.setInputLength(inputSize);
 
         TrainingText trainingData = loadTrainingText(inputSize+1);
@@ -242,14 +242,14 @@ public class NeuralNetwork {
             );
             neuralNetwork.serialize(new File(SAVE_PATH));
         }
-        int stackSize = 4;
+        int stackSize = inputSize*40;
 
         //int batchSize = 12;
 
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(1f/20f);
+        neuralNetwork.setLearnRate(1f/12f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();

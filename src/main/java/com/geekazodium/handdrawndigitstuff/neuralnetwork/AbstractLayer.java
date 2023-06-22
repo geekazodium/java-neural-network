@@ -55,6 +55,11 @@ public abstract class AbstractLayer {
         return new LayerBuffers(0,0,ABSTRACT_LAYER_ID);
     }
 
+    public static long[] pointerOf(long pointer) {
+        if(pointer == 0)throw new RuntimeException("null pointers can lead to undefined behavior, for the sake of everyone's sanity PLEASE DO NOT HECKING DO THIS...");
+        return new long[]{pointer};
+    }
+
     public int getIndex() {
         return index;
     }

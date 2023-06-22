@@ -47,7 +47,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     private void fillArrayWithRandomValues(float[] array){
         for (int i = 0; i <array.length; i++) {
-            array[i] = (float) ((Math.random()*2d-1d)/15d);
+            array[i] = (float) ((Math.random()*2d-1d)/20d);
         }
     }
 
@@ -356,7 +356,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                     float result = biases[neuron];
                     
                     for(int p = 0;p<previousLayerSize;p++){
-                        result += weights[p + neuron * previousLayerSize] * previousLayer[p + stackOffset];
+                        result += weights[p + neuron * previousLayerSize] * previousLayer[p + previousLayerStackOffset];
                     }
                     
                     preActivation[resultLocation] = result;
@@ -410,15 +410,17 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                     
                     int weightStackOffset = stackOffset * previousLayerSize;
                     
-                    previousLayerActivationGradient[previousLayerNeuron + previousLayerStackOffset] = 0;
+                    int previousLayerIndex = previousLayerNeuron + previousLayerStackOffset;
+                    
+                    previousLayerActivationGradient[previousLayerIndex] = 0;
                     
                     float prevNodeActivation = previousLayerActivations[previousLayerNeuron + previousLayerStackOffset];
                     
                     for (int n = 0;n < layerSize; n++){// the previous node activation is the derivative of the weight to the value before activation f()
                         float nodeGradient = nodeGradients[n + stackOffset];
-                        previousLayerActivationGradient[previousLayerNeuron + previousLayerStackOffset] +=
+                        previousLayerActivationGradient[previousLayerIndex] +=
                                 nodeGradient *
-                                weightBuffers[previousLayerNeuron + n * previousLayerSize + weightStackOffset];
+                                weightBuffers[previousLayerNeuron + n * previousLayerSize];
                         weightGradient[previousLayerNeuron + n * previousLayerSize + weightStackOffset] =
                                 nodeGradient *
                                 prevNodeActivation;
@@ -504,11 +506,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         return new EvaluateBackpropagateKernel(layerNodeGradientKernel,layerWeightGradientKernel,this.nodeCount,this.previousLayer.nodeCount,parameterAdjustKernel,this);
     }
 
-    private long[] pointerOf(long pointer) {
-        if(pointer == 0)throw new RuntimeException("null pointers can lead to undefined behavior, for the sake of everyone's sanity PLEASE DO NOT HECKING DO THIS...");
-        return new long[]{pointer};
-    }
-
     private static class EvaluateBackpropagateKernel extends GPUComputeContext.BackPropagateKernels{
 
         private final long nodeGradientKernel;
@@ -558,6 +555,13 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             clEnqueueReadBuffer(commandQueue,evaluateLayer.weightGradientBuffer,true,0,evaluateLayer.weightGradients,null,null);
             clEnqueueReadBuffer(commandQueue,evaluateLayer.nodeGradientBuffer,true,0,evaluateLayer.biasGradients,null,null);
             clFinish(commandQueue);
+
+            for (int j = 0; j < evaluateLayer.weightGradients.length; j++) {
+                float weightGradient = evaluateLayer.weightGradients[j];
+                if (weightGradient > 1) {
+                    System.out.println(j);
+                }
+            }
         }
     }
 
@@ -574,13 +578,13 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             layerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _layerNodeCount, null);
         }
 
-        clSetKernelArg(layerEvaluateKernel,0,new long[]{context.weightBuffers[index]});
-        clSetKernelArg(layerEvaluateKernel,1,new long[]{context.biasBuffers[index]});
-        clSetKernelArg(layerEvaluateKernel,2,new long[]{context.layerDataBuffers[index-1]});
-        clSetKernelArg(layerEvaluateKernel,3,new long[]{context.preActivationBuffers[index]});
-        clSetKernelArg(layerEvaluateKernel,4,new long[]{context.layerDataBuffers[index]});
-        clSetKernelArg(layerEvaluateKernel,5,new long[]{prevLayerNodeCountBuffer});
-        clSetKernelArg(layerEvaluateKernel,6,new long[]{layerNodeCountBuffer});
+        clSetKernelArg(layerEvaluateKernel,0,pointerOf(context.weightBuffers[index]));
+        clSetKernelArg(layerEvaluateKernel,1,pointerOf(context.biasBuffers[index]));
+        clSetKernelArg(layerEvaluateKernel,2,pointerOf(context.layerDataBuffers[index-1]));
+        clSetKernelArg(layerEvaluateKernel,3,pointerOf(context.preActivationBuffers[index]));
+        clSetKernelArg(layerEvaluateKernel,4,pointerOf(context.layerDataBuffers[index]));
+        clSetKernelArg(layerEvaluateKernel,5,pointerOf(prevLayerNodeCountBuffer));
+        clSetKernelArg(layerEvaluateKernel,6,pointerOf(layerNodeCountBuffer));
 
     }
 

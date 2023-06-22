@@ -2,6 +2,8 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
 import com.google.gson.JsonObject;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.PointerBuffer;
 
 import static com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualBlockFrame.RESIDUAL_CONCAT_ID;
 import static org.lwjgl.opencl.CL30.*;
@@ -101,11 +103,75 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
             residualInputSizeBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, residualInputSize, null);
         }
 
-        clSetKernelArg(layerEvaluateKernel,0,new long[]{context.layerDataBuffers[index-residualBlockFrame.layerDepth()+1]});
-        clSetKernelArg(layerEvaluateKernel,1,new long[]{context.layerDataBuffers[index-1]});
-        clSetKernelArg(layerEvaluateKernel,2,new long[]{context.layerDataBuffers[index]});
-        clSetKernelArg(layerEvaluateKernel,3,new long[]{residualInputSizeBuffer});
-        clSetKernelArg(layerEvaluateKernel,4,new long[]{prevLayerNodeCountBuffer});
-        clSetKernelArg(layerEvaluateKernel,5,new long[]{layerNodeCountBuffer});
+        clSetKernelArg(layerEvaluateKernel,0,pointerOf(context.layerDataBuffers[index-residualBlockFrame.layerDepth()+1]));
+        clSetKernelArg(layerEvaluateKernel,1,pointerOf(context.layerDataBuffers[index-1]));
+        clSetKernelArg(layerEvaluateKernel,2,pointerOf(context.layerDataBuffers[index]));
+        clSetKernelArg(layerEvaluateKernel,3,pointerOf(residualInputSizeBuffer));
+        clSetKernelArg(layerEvaluateKernel,4,pointerOf(prevLayerNodeCountBuffer));
+        clSetKernelArg(layerEvaluateKernel,5,pointerOf(layerNodeCountBuffer));
+    }
+
+
+    @Override
+    public GPUComputeContext.BackPropagateKernels createBackpropagationKernels(GPUComputeContext context, int index) {
+        String prevLayerGradientsSrc = """
+                __kernel void getResidualGradients(
+                        __global float *previousLayerActivationGradients,
+                        __global float *residualBlockGradients,
+                        __constant float *blockActivationGradients,
+                        __constant int *residualInputSizePointer,
+                        __constant int *previousLayerSizePointer,
+                        __constant int *layerSizePointer
+                        ){
+                    int neuron = get_global_id(0);
+                    int stackLayer = get_global_id(1);
+
+                    int layerSize = layerSizePointer[0];
+                    int previousLayerSize = previousLayerSizePointer[0];
+
+                    int residualInputSize = residualInputSizePointer[0];
+
+                    int stackOffset = layerSize * stackLayer;
+                    int previousLayerStackOffset = previousLayerSize * stackLayer;
+                    int residualBlockStackOffset = residualInputSize * stackLayer;
+
+                    int resultLocation = neuron + stackOffset;
+
+                    float gradient = blockActivationGradients[resultLocation];
+                    
+                    if(neuron >= previousLayerSize){
+                        int addIndex = neuron - previousLayerSize;
+                        previousLayerActivationGradients[addIndex + previousLayerStackOffset] = gradient;
+                    }else{
+                        residualBlockGradients[residualBlockStackOffset + neuron] = gradient;
+                    }
+                }
+                """;
+
+        long residualGradientsKernel = context.getKernel(prevLayerGradientsSrc, "getResidualGradients");
+        clSetKernelArg(residualGradientsKernel,0,pointerOf(this.residualBlockFrame.getMergeGradientBuffer()));
+        clSetKernelArg(residualGradientsKernel,1,pointerOf(context.layerGradientBuffers[this.residualBlockFrame.getIndex()]));
+        clSetKernelArg(residualGradientsKernel,2,pointerOf(context.layerGradientBuffers[index]));
+        clSetKernelArg(residualGradientsKernel,3,pointerOf(residualInputSizeBuffer));
+        clSetKernelArg(residualGradientsKernel,4,pointerOf(prevLayerNodeCountBuffer));
+        clSetKernelArg(residualGradientsKernel,5,pointerOf(layerNodeCountBuffer));
+        return new GPUComputeContext.BackPropagateKernels() {
+            @Override
+            public long[] getKernels() {
+                return new long[]{residualGradientsKernel};
+            }
+
+            @Override
+            public void run(GPUComputeContext context) {
+
+                PointerBuffer workSize = BufferUtils.createPointerBuffer(2);
+                workSize.put(nodeCount);
+                workSize.put(context.getStackSize());
+                workSize.rewind();
+
+                clEnqueueNDRangeKernel(context.getCommandQueue(), residualGradientsKernel,2,null,workSize,null,null,null);
+
+            }
+        };
     }
 }
