@@ -1,5 +1,6 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions;
 
+import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.CostFunction;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TextSection;
 
@@ -58,5 +59,10 @@ public class TokenPredictionCost implements CostFunction {
         }
         System.out.println("cost:" + cost);
         return derivatives;
+    }
+
+    @Override
+    public long createKernel(GPUComputeContext context) {
+        return 0;
     }
 }

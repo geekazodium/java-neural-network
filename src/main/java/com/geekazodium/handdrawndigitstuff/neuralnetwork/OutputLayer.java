@@ -6,6 +6,11 @@ public class OutputLayer extends AbstractEvaluateLayer{
     }
 
     @Override
+    public long getLayerSizeBuffer() {
+        return this.layerNodeCountBuffer;
+    }
+
+    @Override
     public String name() {
         return "OutputLayer";
     }

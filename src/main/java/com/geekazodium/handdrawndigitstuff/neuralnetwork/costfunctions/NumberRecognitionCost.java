@@ -1,5 +1,6 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions;
 
+import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.CostFunction;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.TrainingImage;
 
@@ -30,5 +31,10 @@ public class NumberRecognitionCost implements CostFunction {
             }
         }
         return derivatives;
+    }
+
+    @Override
+    public long createKernel(GPUComputeContext context) {
+        return 0;
     }
 }

@@ -88,11 +88,17 @@ public abstract class AbstractLayer {
         float[] layerStacked = new float[layerStackedSize];
         layerStackedData[index] = layerStacked;
         layerDataBuffers[index] = clCreateBuffer(gpuContext.getGPUContext(),CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,layerStacked,null);
+        gpuContext.preActivationBuffers[index] = clCreateBuffer(gpuContext.getGPUContext(),CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,new float[stackSize*this.nodeCount],null);
+        gpuContext.layerGradientBuffers[index] = clCreateBuffer(gpuContext.getGPUContext(),CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,new float[stackSize*this.nodeCount],null);
     }
 
     public GPUComputeContext.BackPropagateKernels createBackpropagationKernels(GPUComputeContext context, int index){
 
         return null;
+    }
+
+    public long getLayerSizeBuffer() {
+        return 0;
     }
 
     public record LayerBuffers(long weights, long biases, int types){}

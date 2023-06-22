@@ -10,6 +10,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.lwjgl.opencl.CL10.*;
+import static org.lwjgl.opencl.CL10.CL_MEM_COPY_HOST_PTR;
+
 public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, EvaluateLayer,SerializableToJsonLayer,EvaluateModifiableLayer{
 
     private static final int RESIDUAL_BLOCK_ID = 997;
@@ -153,6 +156,8 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, GPUComputeContext gpuContext, int stackSize, int index) {
         layerStackedData[index] = layerStackedData[index-1];
         layerDataBuffers[index] = layerDataBuffers[index-1];
+        gpuContext.preActivationBuffers[index] = clCreateBuffer(gpuContext.getGPUContext(),CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,new float[stackSize*this.nodeCount],null);
+        gpuContext.layerGradientBuffers[index] = clCreateBuffer(gpuContext.getGPUContext(),CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,new float[stackSize*this.nodeCount],null);
     }
 
     @Override

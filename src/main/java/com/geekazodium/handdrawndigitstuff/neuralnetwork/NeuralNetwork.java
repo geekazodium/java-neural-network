@@ -1,6 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions.SimpleExpectedOutputCostFunction;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions.TokenPredictionCost;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualAddBlock;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualBlockFrame;
@@ -15,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "Deep_Tired_Network.json";
+    public static final String SAVE_PATH = "Deep_Testing_network.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     public final AbstractLayer[] layers;
@@ -89,37 +90,6 @@ public class NeuralNetwork {
             evaluateLayer.pushChanges(this.learnRate);
         }
     }
-
-//    public void batchGPU(List<?> trainingDataObjects,TrainingFunction function, int trainingThreadLimit){
-//        this.batchCount++;
-//        final int toComplete = trainingDataObjects.size();
-//        final AtomicInteger completed = new AtomicInteger(0);
-//        final AtomicInteger active = new AtomicInteger(0);
-//        final NeuralNetwork thisNetwork = this;
-//        trainingDataObjects.forEach(o -> {
-//            while (trainingThreadLimit<=active.get()){
-//                Thread.onSpinWait();
-//            }
-//            active.addAndGet(1);
-//            Thread thread = new Thread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    function.trainOnData(o,thisNetwork);
-//                    completed.addAndGet(1);
-//                    active.addAndGet(-1);
-//                }
-//            });
-//            thread.start();
-//        });
-//        while (toComplete>completed.get()){
-//            Thread.onSpinWait();
-//        }
-//        for (AbstractLayer layer : this.layers) {
-//            if(!(layer instanceof EvaluateModifiableLayer evaluateLayer)) continue;
-//            evaluateLayer.pushChanges(this.learnRate);
-//        }
-//    }
-//
 
     private float[] IndividualMultiply(float[] a, float[] b) {
         float[] der = new float[a.length];
@@ -238,7 +208,7 @@ public class NeuralNetwork {
     public static void main(String[] args) throws Exception {
         //int trainingThreadLimit = 4;
 
-        int inputSize = 128;
+        int inputSize = 2;
         TextSection.setInputLength(inputSize);
 
         TrainingText trainingData = loadTrainingText(inputSize+1);
@@ -255,31 +225,31 @@ public class NeuralNetwork {
                     new InputLayer(inputNeurons),
                     new EvaluateLayer[]{
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
-                                    new HiddenLayer(512*3),
-                                    new HiddenLayer(256*3),
-                                    new HiddenLayer(128*3)
-                            }, ResidualConcatBlock.instantiate(inputNeurons,128*3)),
-                            new ResidualBlockFrame(inputNeurons+128*3, new AbstractLayer[]{
-                                    new HiddenLayer(512*3),
-                                    new HiddenLayer(256*3),
-                                    new HiddenLayer(128*3)
-                            }, new ResidualAddBlock(inputNeurons+128*3,128*3,0)),
-                            new HiddenLayer(1024*2),
-                            new HiddenLayer((512+256)*2),
-                            new HiddenLayer(512*2)
+                                    new HiddenLayer(10),
+                                    new HiddenLayer(10),
+                                    new HiddenLayer(10)
+                            }, ResidualConcatBlock.instantiate(inputNeurons,10)),
+                            new ResidualBlockFrame(inputNeurons+10, new AbstractLayer[]{
+                                    new HiddenLayer(10),
+                                    new HiddenLayer(10),
+                                    new HiddenLayer(10)
+                            }, new ResidualAddBlock(inputNeurons+10,10,0)),
+                            new HiddenLayer(20),
+                            new HiddenLayer(20),
+                            new HiddenLayer(20)
                     },
                     new OutputLayer(outputNeurons)
             );
             neuralNetwork.serialize(new File(SAVE_PATH));
         }
-        int stackSize = 5120;
+        int stackSize = 4;
 
         //int batchSize = 12;
 
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(1f/5f);
+        neuralNetwork.setLearnRate(1f/20f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();
@@ -288,6 +258,9 @@ public class NeuralNetwork {
         gpuComputeContext.createBackpropagationKernels();
         gpuComputeContext.updateStackSizeBuffer();
         gpuComputeContext.updateLearnRateBuffer(neuralNetwork.learnRate);
+
+        SimpleExpectedOutputCostFunction expectedOutputCostFunction = new SimpleExpectedOutputCostFunction(gpuComputeContext, neuralNetwork.outputLayer.nodeCount,stackSize);
+        gpuComputeContext.setCostFunctionKernel(expectedOutputCostFunction);
 
         TextSection section = trainingData.getExample();
         section.log();
@@ -308,17 +281,24 @@ public class NeuralNetwork {
 //            testExample(trainingData,neuralNetwork);
 
             float[][] inputs = new float[stackSize][];
+            float[][] expectedOuts = new float[stackSize][];
             for (int i = 0; i < stackSize; i++) {
                 int characterIndex = i%inputSize;
                 TextSection example = trainingData.getExample();
                 float[] data = example.getData(characterIndex);
                 inputs[i] = data;
+
+                float[] output = new float[neuralNetwork.outputLayer.nodeCount];
+                output[example.section.get(characterIndex)] = 1f;
+                expectedOuts[i] = output;
             }
+            expectedOutputCostFunction.setKernelExpectedResults(gpuComputeContext,expectedOuts);
             float[] stackedInputs = gpuComputeContext.stackInput(inputs);
             gpuComputeContext.setInputs(stackedInputs);
             gpuComputeContext.train();
             System.out.println("");
             testExample(trainingData, neuralNetwork);
+            Thread.sleep(1000);
         }
 
         neuralNetwork.closeGPUTrainingContext();
@@ -372,7 +352,7 @@ public class NeuralNetwork {
     }
 
     private static void testExample(TrainingText trainingData, NeuralNetwork neuralNetwork) {
-        StringBuilder s = new StringBuilder("why are you tired?");
+        StringBuilder s = new StringBuilder("aaaaaaaaaa");
         for (int c = 0; c < 128; c++) {
             float[] inputs = TextSection.chunkString(s.toString(), trainingData.characterSet, trainingData.inverseCharset);
             float[] outs = neuralNetwork.evaluate(inputs);
