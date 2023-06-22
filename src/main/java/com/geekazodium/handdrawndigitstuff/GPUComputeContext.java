@@ -1,5 +1,6 @@
 package com.geekazodium.handdrawndigitstuff;
 
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractEvaluateLayer;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractLayer;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.NeuralNetwork;
 import com.geekazodium.handdrawndigitstuff.utils.ConsoleStylizer;
@@ -38,6 +39,8 @@ public class GPUComputeContext {
         gpuComputeDevice = computeDevices[0];
         gpuContext = getContext(gpuComputeDevice);
         commandQueue = getCommandQueue(gpuComputeDevice, gpuContext);
+        learnRatePointer = clCreateBuffer(gpuContext, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,new float[1],null);
+        stackSizePointer = clCreateBuffer(gpuContext, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,new float[1],null);
 
         long[] workDimLongs = getDeviceInfoLongs(gpuComputeDevice, CL_DEVICE_MAX_WORK_ITEM_SIZES);
         System.arraycopy(workDimLongs,0,deviceLocalMaxWorkSize,0,3);
@@ -107,8 +110,33 @@ public class GPUComputeContext {
     public long[] layerGradientBuffers;
     public float[][] layerStackedData;
 
+    public int getStackSize() {
+        return this.stackSize;
+    }
+
+    private final long learnRatePointer;
+
+    public void updateLearnRateBuffer(float learnRate){
+        clEnqueueWriteBuffer(commandQueue,learnRatePointer,true,0,new float[]{learnRate},null,null);
+    }
+    public void updateStackSizeBuffer(){
+        clEnqueueWriteBuffer(commandQueue,learnRatePointer,true,0,new float[]{stackSize},null,null);
+    }
+
+    public long getLearnRatePointer() {
+        return learnRatePointer;
+    }
+
+    private long stackSizePointer;
+
+    public long getStackSizePointer() {
+        return stackSizePointer;
+    }
+
     public static abstract class BackPropagateKernels {
         public abstract long[] getKernels();
+
+        public abstract void run(GPUComputeContext context);
 
     }
 
@@ -151,6 +179,7 @@ public class GPUComputeContext {
     }
 
     public void createBackpropagationKernels(){
+        this.backPropagateKernels = new BackPropagateKernels[this.neuralNetworkDepth];
         for (int i = 0; i < this.neuralNetworkLayers.length; i++) {
             backPropagateKernels[i] = neuralNetworkLayers[i].createBackpropagationKernels(this, i);
         }
@@ -164,7 +193,7 @@ public class GPUComputeContext {
         }
     }
 
-    public void evaluate(){
+    public void train(){
         long[] evaluateKernels = this.layerEvaluateKernels;
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
             long layerEvaluateKernel = evaluateKernels[i];
@@ -181,6 +210,8 @@ public class GPUComputeContext {
                     this.commandQueue, layerEvaluateKernel, 2,
                     null, globalWorkSize,null,null,null
             );
+
+            clFinish(this.commandQueue);
         }
 
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
@@ -188,8 +219,19 @@ public class GPUComputeContext {
             if(layerEvaluateKernel == 0)continue;
             clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[i],true,0,this.layerStackedData[i],null,null);
         }
-
         clFinish(this.commandQueue);
+
+        for (int i = evaluateKernels.length-1; i >= 0 ; i--) {
+            BackPropagateKernels backPropagateKernel = backPropagateKernels[i];
+            if(backPropagateKernel == null)continue;
+            backPropagateKernel.run(this);
+            if(neuralNetworkLayers[i] instanceof AbstractEvaluateLayer evaluateLayer) {
+                clEnqueueReadBuffer(commandQueue, biasBuffers[i], true, 0, neuralNetworkLayers[i].getBiases(), null, null);
+                clEnqueueReadBuffer(commandQueue, weightBuffers[i], true, 0, neuralNetworkLayers[i].getWeights(), null, null);
+            }
+            clFinish(this.commandQueue);
+        }
+
         for (float[] layerStackedData : this.layerStackedData) {
             float[] loggedArray = new float[1024];
             System.arraycopy(layerStackedData,0,loggedArray,0,1024);

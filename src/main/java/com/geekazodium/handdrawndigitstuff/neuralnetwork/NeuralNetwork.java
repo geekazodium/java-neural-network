@@ -286,11 +286,13 @@ public class NeuralNetwork {
         gpuComputeContext.createStackedLayerBuffers();
         gpuComputeContext.setKernelArgs();
         gpuComputeContext.createBackpropagationKernels();
+        gpuComputeContext.updateStackSizeBuffer();
+        gpuComputeContext.updateLearnRateBuffer(neuralNetwork.learnRate);
 
         TextSection section = trainingData.getExample();
         section.log();
 
-        //testExample(trainingData, neuralNetwork);
+        testExample(trainingData, neuralNetwork);
 
         for (int batchCounter = 0; batchCounter < 10000; batchCounter++) {
 //            long startTime = System.currentTimeMillis();
@@ -314,8 +316,9 @@ public class NeuralNetwork {
             }
             float[] stackedInputs = gpuComputeContext.stackInput(inputs);
             gpuComputeContext.setInputs(stackedInputs);
-            gpuComputeContext.evaluate();
+            gpuComputeContext.train();
             System.out.println("");
+            testExample(trainingData, neuralNetwork);
         }
 
         neuralNetwork.closeGPUTrainingContext();
