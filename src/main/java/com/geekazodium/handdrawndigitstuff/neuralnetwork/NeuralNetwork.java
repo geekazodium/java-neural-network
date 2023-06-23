@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "Send_Help.json";
+    public static final String SAVE_PATH = "topato_potato.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     public final AbstractLayer[] layers;
@@ -225,24 +225,24 @@ public class NeuralNetwork {
                     new InputLayer(inputNeurons),
                     new EvaluateLayer[]{
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
-                                    new HiddenLayer(512),
-                                    new HiddenLayer(256),
-                                    new HiddenLayer(128)
-                            }, ResidualConcatBlock.instantiate(inputNeurons,128)),
-                            new ResidualBlockFrame(inputNeurons+128, new AbstractLayer[]{
-                                    new HiddenLayer(512),
-                                    new HiddenLayer(256),
-                                    new HiddenLayer(128)
-                            }, new ResidualAddBlock(inputNeurons+128,128,0)),
-                            new HiddenLayer(512),
-                            new HiddenLayer(256),
-                            new HiddenLayer(128)
+                                    new HiddenLayer(512*3),
+                                    new HiddenLayer(256*3),
+                                    new HiddenLayer(128*3)
+                            }, ResidualConcatBlock.instantiate(inputNeurons,128*3)),
+                            new ResidualBlockFrame(inputNeurons+128*3, new AbstractLayer[]{
+                                    new HiddenLayer(512*3),
+                                    new HiddenLayer(256*3),
+                                    new HiddenLayer(128*3)
+                            }, new ResidualAddBlock(inputNeurons+128*3,128*3,0)),
+                            new HiddenLayer(512*4),
+                            new HiddenLayer(256*3),
+                            new HiddenLayer(128*2)
                     },
                     new OutputLayer(outputNeurons)
             );
             neuralNetwork.serialize(new File(SAVE_PATH));
         }
-        int stackSize = inputSize*40;
+        int stackSize = inputSize*16;
 
         //int batchSize = 12;
 

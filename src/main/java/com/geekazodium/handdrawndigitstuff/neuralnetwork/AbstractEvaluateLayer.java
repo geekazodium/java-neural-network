@@ -7,7 +7,6 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -395,9 +394,9 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                         __constant float *previousLayerActivations,
                         __constant float *weightBuffers,
                         __global float *previousLayerActivationGradient,
-                        __global float *weightGradient,
                         __constant int *previousLayerSizePointer,
-                        __constant int *layerSizePointer
+                        __constant int *layerSizePointer,
+                        __constant int *stackSizePointer
                         ){
                     int previousLayerNeuron = get_global_id(0);
                     int stackLayer = get_global_id(1);
@@ -406,32 +405,64 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                     int previousLayerStackOffset = previousLayerSize * stackLayer;
                     
                     int layerSize = layerSizePointer[0];
+                    int stackSize = stackSizePointer[0];
                     int stackOffset = layerSize * stackLayer;
-                    
-                    int weightStackOffset = stackOffset * previousLayerSize;
                     
                     int previousLayerIndex = previousLayerNeuron + previousLayerStackOffset;
                     
                     previousLayerActivationGradient[previousLayerIndex] = 0;
                     
-                    float prevNodeActivation = previousLayerActivations[previousLayerNeuron + previousLayerStackOffset];
+                    
+                    int localGroup = get_local_id(1);
                     
                     for (int n = 0;n < layerSize; n++){// the previous node activation is the derivative of the weight to the value before activation f()
                         float nodeGradient = nodeGradients[n + stackOffset];
+                        int weightIndex = previousLayerNeuron + n * previousLayerSize;
+                        
                         previousLayerActivationGradient[previousLayerIndex] +=
                                 nodeGradient *
-                                weightBuffers[previousLayerNeuron + n * previousLayerSize];
-                        weightGradient[previousLayerNeuron + n * previousLayerSize + weightStackOffset] =
-                                nodeGradient *
-                                prevNodeActivation;
+                                weightBuffers[weightIndex];
+                        
                     }
+                }
+                """;//todo add stack size stuff here
+
+        String weightGradientSrc = """
+                __kernel void getWeightGradients(
+                        __constant float *nodeGradients, //equal to biasGradients
+                        __constant float *previousLayerActivations,
+                        __global float *weightGradient,
+                        __constant int *previousLayerSizePointer,
+                        __constant int *layerSizePointer,
+                        __constant int *stackSizePointer
+                        ){
+                    int previousLayerNeuron = get_global_id(0);
+                    int neuron = get_global_id(1);
+                    
+                    int previousLayerSize = previousLayerSizePointer[0];
+                    int layerSize = layerSizePointer[0];
+                    int stackSize = stackSizePointer[0];
+                    
+                    int weightIndex = previousLayerNeuron + neuron * previousLayerSize;
+                    
+                    float adjustment = 0.0f;
+                    for(int stackLayer = 0; stackLayer < stackSize; stackLayer ++){
+                        int stackOffset = layerSize * stackLayer;
+                        int previousLayerStackOffset = previousLayerSize * stackLayer;
+                        
+                        float prevNodeActivation = previousLayerActivations[previousLayerNeuron + previousLayerStackOffset];
+                        float nodeGradient = nodeGradients[neuron + stackOffset];
+                        
+                        adjustment += (nodeGradient * prevNodeActivation);
+                    }
+                    weightGradient[weightIndex] = adjustment;
                 }
                 """;
 
         String parameterAdjustSrc = """
                 __kernel void parameterAdjust(
                         __constant float *nodeGradients, //equal to biasGradients
-                        __constant float *weightGradients,
+                        __global float *weightGradients,
                         __global float *biasBuffers,
                         __global float *weightBuffers,
                         __constant int *previousLayerSizePointer,
@@ -458,23 +489,25 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                         biasBuffers[neuron] += biasAdjustment * -learnRate;
                     }
                     
-                    float weightAdjustment = 0;
-                    for(int stackLayer = 0; stackLayer < stackSize; stackLayer ++){
-                        int weightStackOffset = stackLayer * previousLayerSize * layerSize;
-                        weightAdjustment += weightGradients[weightStackOffset + neuron] / stackSizeFloat;
-                    }
-                    weightBuffers[neuron] += weightAdjustment * -learnRate;
+                    float weightAdjustment = weightGradients[neuron];
+                    weightBuffers[neuron] += weightAdjustment * -learnRate / stackSizeFloat;
+                    //weightBuffers[neuron] = weightAdjustment;
+                    weightGradients[neuron] = 0;
                 }
                 """;
 
+
         long layerNodeGradientKernel = context.getKernel(nodeGradientsSrc, "getLayerNodeGradient");
-        long layerWeightGradientKernel = context.getKernel(prevLayerGradientsSrc, "getGradientsFromNodeGradient");
+        long prevLayerActivationGradientKernel = context.getKernel(prevLayerGradientsSrc, "getGradientsFromNodeGradient");
 
         long gpuContext = context.getGPUContext();
         biasGradients = new float[this.nodeCount * context.getStackSize()];
-        weightGradients = new float[this.nodeCount * this.previousLayer.nodeCount * context.getStackSize()];
+        weightGradients = new float[this.nodeCount * this.previousLayer.nodeCount];
         nodeGradientBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, biasGradients, null);
         weightGradientBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, weightGradients, null);
+//
+//        float[] temporaryWeightGradients = new float[context.getStackSize() * this.previousLayer.nodeCount];
+//        long temporaryWeightGradientsBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, temporaryWeightGradients, null);
 
         List<Integer> resultList = new ArrayList<>();
         resultList.add(clSetKernelArg(layerNodeGradientKernel,0,pointerOf(context.preActivationBuffers[index])));
@@ -482,13 +515,23 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         resultList.add(clSetKernelArg(layerNodeGradientKernel,2,pointerOf(nodeGradientBuffer)));
         resultList.add(clSetKernelArg(layerNodeGradientKernel,3,pointerOf(layerNodeCountBuffer)));
 
-        resultList.add(clSetKernelArg(layerWeightGradientKernel,0,pointerOf(nodeGradientBuffer)));
-        resultList.add(clSetKernelArg(layerWeightGradientKernel,1,pointerOf(context.layerDataBuffers[index-1])));
-        resultList.add(clSetKernelArg(layerWeightGradientKernel,2,pointerOf(context.weightBuffers[index])));
-        resultList.add(clSetKernelArg(layerWeightGradientKernel,3,pointerOf(context.layerGradientBuffers[index-1])));
-        resultList.add(clSetKernelArg(layerWeightGradientKernel,4,pointerOf(weightGradientBuffer)));
-        resultList.add(clSetKernelArg(layerWeightGradientKernel,5,pointerOf(this.prevLayerNodeCountBuffer)));
-        resultList.add(clSetKernelArg(layerWeightGradientKernel,6,pointerOf(this.layerNodeCountBuffer)));
+        resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,0,pointerOf(nodeGradientBuffer)));
+        resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,1,pointerOf(context.layerDataBuffers[index-1])));
+        resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,2,pointerOf(context.weightBuffers[index])));
+        resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,3,pointerOf(context.layerGradientBuffers[index-1])));
+        //resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,4,pointerOf(weightGradientBuffer)));
+        //resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,5,pointerOf(temporaryWeightGradientsBuffer)));
+        resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,4,pointerOf(this.prevLayerNodeCountBuffer)));
+        resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,5,pointerOf(this.layerNodeCountBuffer)));
+        resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,6,pointerOf(context.getStackSizePointer())));
+
+        long weightGradientKernel = context.getKernel(weightGradientSrc, "getWeightGradients");
+        resultList.add(clSetKernelArg(weightGradientKernel,0,pointerOf(nodeGradientBuffer)));
+        resultList.add(clSetKernelArg(weightGradientKernel,1,pointerOf(context.layerDataBuffers[index-1])));
+        resultList.add(clSetKernelArg(weightGradientKernel,2,pointerOf(weightGradientBuffer)));
+        resultList.add(clSetKernelArg(weightGradientKernel,3,pointerOf(this.prevLayerNodeCountBuffer)));
+        resultList.add(clSetKernelArg(weightGradientKernel,4,pointerOf(this.layerNodeCountBuffer)));
+        resultList.add(clSetKernelArg(weightGradientKernel,5,pointerOf(context.getStackSizePointer())));
 
         long parameterAdjustKernel = context.getKernel(parameterAdjustSrc, "parameterAdjust");
 
@@ -501,20 +544,23 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         resultList.add(clSetKernelArg(parameterAdjustKernel,6,pointerOf(context.getLearnRatePointer())));
         resultList.add(clSetKernelArg(parameterAdjustKernel,7,pointerOf(context.getStackSizePointer())));
 
-        return new EvaluateBackpropagateKernel(layerNodeGradientKernel,layerWeightGradientKernel,this.nodeCount,this.previousLayer.nodeCount,parameterAdjustKernel,this);
+        return new EvaluateBackpropagateKernel(layerNodeGradientKernel,prevLayerActivationGradientKernel,weightGradientKernel,this.nodeCount,this.previousLayer.nodeCount,parameterAdjustKernel,this);
     }
 
     private static class EvaluateBackpropagateKernel extends GPUComputeContext.BackPropagateKernels{
 
         private final long nodeGradientKernel;
+        private final long previousLayerActivationGradientKernel;
+
         private final long weightGradientKernel;
         private final int prevLayerSize;
         private final int layerSize;
         private final long parameterAdjustKernel;
         private final AbstractEvaluateLayer evaluateLayer;
 
-        public EvaluateBackpropagateKernel(long nodeGradientKernel, long weightGradientKernel, int layerSize, int prevLayerSize, long parameterAdjustKernel, AbstractEvaluateLayer evaluateLayer){
+        public EvaluateBackpropagateKernel(long nodeGradientKernel, long previousLayerActivationGradientKernel, long weightGradientKernel, int layerSize, int prevLayerSize, long parameterAdjustKernel, AbstractEvaluateLayer evaluateLayer){
             this.nodeGradientKernel = nodeGradientKernel;
+            this.previousLayerActivationGradientKernel = previousLayerActivationGradientKernel;
             this.weightGradientKernel = weightGradientKernel;
             this.parameterAdjustKernel = parameterAdjustKernel;
             this.layerSize = layerSize;
@@ -524,7 +570,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
         @Override
         public long[] getKernels() {
-            return new long[]{nodeGradientKernel,weightGradientKernel};
+            return new long[]{nodeGradientKernel, previousLayerActivationGradientKernel};
         }
 
         @Override
@@ -539,27 +585,39 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             biasKernelWorkSize.rewind();
             int i = clEnqueueNDRangeKernel(commandQueue, this.nodeGradientKernel, 2, null, biasKernelWorkSize, null, null, null);
 
-            PointerBuffer weightKernelWorkSize = BufferUtils.createPointerBuffer(2);
-            weightKernelWorkSize.put(this.prevLayerSize);
-            weightKernelWorkSize.put(context.getStackSize());
-            weightKernelWorkSize.rewind();
-            int i1 = clEnqueueNDRangeKernel(commandQueue, this.weightGradientKernel, 2, null, weightKernelWorkSize, null, null, null);
+            clFinish(commandQueue);
+
+            PointerBuffer prevLayerGradientKernelSize = BufferUtils.createPointerBuffer(2);
+            prevLayerGradientKernelSize.put(this.prevLayerSize);
+            prevLayerGradientKernelSize.put(context.getStackSize());
+            prevLayerGradientKernelSize.rewind();
+            int i1 = clEnqueueNDRangeKernel(commandQueue, this.previousLayerActivationGradientKernel, 2, null, prevLayerGradientKernelSize, null, null, null);
+
+            clFinish(commandQueue);
+
+            PointerBuffer weightGradientKernelSize = BufferUtils.createPointerBuffer(2);
+            weightGradientKernelSize.put(this.prevLayerSize);
+            weightGradientKernelSize.put(this.layerSize);
+            weightGradientKernelSize.rewind();
+            int i_1 = clEnqueueNDRangeKernel(commandQueue, this.weightGradientKernel, 2, null,weightGradientKernelSize,null,null,null);
+
+            clFinish(commandQueue);
 
             PointerBuffer adjustParameterWorkSize = BufferUtils.createPointerBuffer(1);
             adjustParameterWorkSize.put((long) this.prevLayerSize * (long) this.layerSize);
             adjustParameterWorkSize.rewind();
             int i2 = clEnqueueNDRangeKernel(commandQueue, this.parameterAdjustKernel, 1, null, adjustParameterWorkSize, null, null, null);
 
-            clEnqueueReadBuffer(commandQueue,evaluateLayer.weightGradientBuffer,true,0,evaluateLayer.weightGradients,null,null);
-            clEnqueueReadBuffer(commandQueue,evaluateLayer.nodeGradientBuffer,true,0,evaluateLayer.biasGradients,null,null);
+//            clEnqueueReadBuffer(commandQueue,evaluateLayer.weightGradientBuffer,true,0,evaluateLayer.weightGradients,null,null);
+ //           clEnqueueReadBuffer(commandQueue,evaluateLayer.nodeGradientBuffer,true,0,evaluateLayer.biasGradients,null,null);
             clFinish(commandQueue);
 
-            for (int j = 0; j < evaluateLayer.weightGradients.length; j++) {
-                float weightGradient = evaluateLayer.weightGradients[j];
-                if (weightGradient > 1) {
-                    System.out.println(j);
-                }
-            }
+//            for (int j = 0; j < evaluateLayer.weightGradients.length; j++) {
+//                float weightGradient = evaluateLayer.weightGradients[j];
+//                if (weightGradient > 1) {
+//                    System.out.println(j);
+//                }
+//            }
         }
     }
 

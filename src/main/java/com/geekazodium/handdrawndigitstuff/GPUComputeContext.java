@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractLayer.EVALUATE_LAYER_ID;
@@ -366,12 +367,42 @@ public class GPUComputeContext {
                             ConsoleStylizer.formatByteSize(getDeviceInfoLong(devices[j], CL_DEVICE_GLOBAL_MEM_CACHE_SIZE))+
                             " global mem cache size\n"+
                             getDeviceWorkItemSizes(devices[j]) +
-                            " max work item sizes\n"+
+                            " max work item sizes\n" +
+                            getAtomicMemoryCapabilities(devices[j]) +
+                            " \n" +
+                            new String(getDeviceInfoBytes(devices[j], CL_DEVICE_VERSION)) +
+                            "\n"+
                             ConsoleStylizer.lineDivider(60, "platform:"+platform)
             );
             devicesList.add(devices[j]);
         }
         return devicesList;
+    }
+
+    private static String getAtomicMemoryCapabilities(long device) {
+        byte deviceInfoBytes = getDeviceInfoBytes(device, CL_DEVICE_ATOMIC_MEMORY_CAPABILITIES)[0];
+        StringBuilder capabilitiesInfoStringBuilder = new StringBuilder();
+        if(checkSupports(deviceInfoBytes,CL_DEVICE_ATOMIC_ORDER_SEQ_CST)){
+            capabilitiesInfoStringBuilder.append("supports CL_DEVICE_ATOMIC_ORDER_SEQ_CST\n");
+        }
+        if(checkSupports(deviceInfoBytes,CL_DEVICE_ATOMIC_ORDER_RELAXED)){
+            capabilitiesInfoStringBuilder.append("supports CL_DEVICE_ATOMIC_ORDER_RELAXED\n");
+        }
+        if(checkSupports(deviceInfoBytes,CL_DEVICE_ATOMIC_ORDER_ACQ_REL)){
+            capabilitiesInfoStringBuilder.append("supports CL_DEVICE_ATOMIC_ORDER_ACQ_REL\n");
+        }
+        if(checkSupports(deviceInfoBytes,CL_DEVICE_ATOMIC_SCOPE_DEVICE)){
+            capabilitiesInfoStringBuilder.append("supports CL_DEVICE_ATOMIC_SCOPE_DEVICE\n");
+        }
+        if(checkSupports(deviceInfoBytes,CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP)){
+            capabilitiesInfoStringBuilder.append("supports CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP\n");
+        }
+
+        return capabilitiesInfoStringBuilder.toString() + deviceInfoBytes;
+    }
+
+    private static boolean checkSupports(byte deviceInfoBytes, int atomicCapability) {
+        return (deviceInfoBytes & atomicCapability) != 0;
     }
 
     private static String getDeviceWorkItemSizes(long device) {
@@ -416,6 +447,13 @@ public class GPUComputeContext {
 
     private static long getDeviceInfoLong(long deviceID, int deviceInfo){
         LongBuffer attribBuffer = BufferUtils.createLongBuffer(1);
+        PointerBuffer lengthBuffer = BufferUtils.createPointerBuffer(1);
+        clGetDeviceInfo(deviceID,deviceInfo,attribBuffer,lengthBuffer);
+        return attribBuffer.get();
+    }
+
+    private static int getDeviceInfoInt(long deviceID, int deviceInfo){
+        IntBuffer attribBuffer = BufferUtils.createIntBuffer(1);
         PointerBuffer lengthBuffer = BufferUtils.createPointerBuffer(1);
         clGetDeviceInfo(deviceID,deviceInfo,attribBuffer,lengthBuffer);
         return attribBuffer.get();
