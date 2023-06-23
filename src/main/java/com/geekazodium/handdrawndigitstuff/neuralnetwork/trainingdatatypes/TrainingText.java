@@ -13,7 +13,7 @@ public class TrainingText {
     public TrainingText(String s, String charSet, int chunkSize) {
         char[] charArray = s.toCharArray();
         int count = 0;
-        for(char c: ("\r"+charSet).toCharArray()){
+        for(char c: ("\t"+charSet).toCharArray()){
             if(!characterSet.containsKey(c)) {
                 characterSet.put(c, count);
                 inverseCharset.put(count, c);
@@ -22,17 +22,21 @@ public class TrainingText {
         }
 
         int dataLength = s.length();
-        ArrayList<Integer> data = new ArrayList<>(dataLength);
+        ArrayList<Integer> data = new ArrayList<>();
         for (int i = 0; i < dataLength; i++) {
             char key = charArray[i];
-            if(!characterSet.containsKey(key))throw new RuntimeException("INVALID CHARACTER");
+            if(!characterSet.containsKey(key)){
+                System.out.println("INVALID CHARACTER: "+ key);
+                continue;
+            }
             data.add(characterSet.get(key));
         }
         this.data = new ArrayList<>(data);
 
         this.chunkSize = chunkSize;
         random = new Random();
-        bound = dataLength - chunkSize;
+        int size = this.data.size();
+        bound = size - chunkSize;
     }
 
     public TextSection getExample(){

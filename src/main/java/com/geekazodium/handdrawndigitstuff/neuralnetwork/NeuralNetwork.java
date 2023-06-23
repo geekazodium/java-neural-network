@@ -249,7 +249,7 @@ public class NeuralNetwork {
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(1f/12f);
+        neuralNetwork.setLearnRate(1f/16f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();
@@ -264,8 +264,6 @@ public class NeuralNetwork {
 
         TextSection section = trainingData.getExample();
         section.log();
-
-        testExample(trainingData, neuralNetwork);
 
         for (int batchCounter = 0; batchCounter < 10000; batchCounter++) {
 //            long startTime = System.currentTimeMillis();
@@ -296,11 +294,18 @@ public class NeuralNetwork {
             float[] stackedInputs = gpuComputeContext.stackInput(inputs);
             gpuComputeContext.setInputs(stackedInputs);
             gpuComputeContext.train();
-            System.out.println("");
-            testExample(trainingData, neuralNetwork);
             if(batchCounter % 4 == 0){
                 neuralNetwork.serialize(new File(SAVE_PATH));
+                System.out.println("saving network");
             }
+            System.out.println();
+            Thread thread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    testExample(trainingData, neuralNetwork);
+                }
+            });
+            thread.start();
         }
 
         neuralNetwork.closeGPUTrainingContext();
@@ -354,7 +359,7 @@ public class NeuralNetwork {
     }
 
     private static void testExample(TrainingText trainingData, NeuralNetwork neuralNetwork) {
-        StringBuilder s = new StringBuilder("aaaaaaaaaa");
+        StringBuilder s = new StringBuilder("why are you tired?");
         for (int c = 0; c < 128; c++) {
             float[] inputs = TextSection.chunkString(s.toString(), trainingData.characterSet, trainingData.inverseCharset);
             float[] outs = neuralNetwork.evaluate(inputs);
