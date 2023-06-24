@@ -38,11 +38,9 @@ public class TextSection {
             if(i>endIndex)break;
             Integer integer = section.get(i);
             if(integer<0)continue;
-            //System.out.print(integer+",");
             data[index + integer] = 1f;
             index += charsetSize;
         }
-        //System.out.println();
         return data;
     }
 

@@ -47,7 +47,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     private void fillArrayWithRandomValues(float[] array){
         for (int i = 0; i <array.length; i++) {
-            array[i] = (float) ((Math.random()*2d-1d)/18d);
+            array[i] = (float) ((Math.random()*2d-1d)/20d);
         }
     }
 

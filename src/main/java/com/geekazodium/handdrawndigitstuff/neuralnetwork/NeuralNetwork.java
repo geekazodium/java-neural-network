@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "tears_of_the_gpu.json";
+    public static final String SAVE_PATH = "oh boi.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     public final AbstractLayer[] layers;
@@ -227,18 +227,18 @@ public class NeuralNetwork {
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
                                     new HiddenLayer(512*3),
                                     new HiddenLayer(256*3),
-                                    new HiddenLayer(trainingData.characterSet.size()*10)
-                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*10,0)),
+                                    new HiddenLayer(trainingData.characterSet.size()*15)
+                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*15,0)),
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
                                     new HiddenLayer(512*3),
                                     new HiddenLayer(256*3),
-                                    new HiddenLayer(trainingData.characterSet.size()*10)
-                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*10,trainingData.characterSet.size()*10)),
+                                    new HiddenLayer(trainingData.characterSet.size()*15)
+                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*15,trainingData.characterSet.size()*15)),
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
                                     new HiddenLayer(512*3),
                                     new HiddenLayer(256*3),
-                                    new HiddenLayer(trainingData.characterSet.size()*10)
-                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*10,trainingData.characterSet.size()*10*2)),
+                                    new HiddenLayer(trainingData.characterSet.size()*15)
+                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*15,trainingData.characterSet.size()*15*2)),
                             new HiddenLayer(512*4),
                             new HiddenLayer(256*4),
                             new HiddenLayer(128*5)
@@ -254,7 +254,7 @@ public class NeuralNetwork {
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(1f/4f);
+        neuralNetwork.setLearnRate(0.45f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();
@@ -293,14 +293,17 @@ public class NeuralNetwork {
 
             float[][] inputs = new float[stackSize][];
             float[][] expectedOuts = new float[stackSize][];
+            TextSection example = null;
             for (int i = 0; i < stackSize; i++) {
+                if(i%inputSize == 0){
+                    example = trainingData.getNextExample();
+                }
                 int characterIndex = i%inputSize;
-                TextSection example = trainingData.getNextExample();
                 float[] data = example.getData(characterIndex);
                 inputs[i] = data;
 
                 float[] output = new float[neuralNetwork.outputLayer.nodeCount];
-                output[example.section.get(characterIndex)] = 1f;
+                output[example.section.get(characterIndex+1)] = 1f;
                 expectedOuts[i] = output;
             }
             expectedOutputCostFunction.setKernelExpectedResults(gpuComputeContext,expectedOuts);
