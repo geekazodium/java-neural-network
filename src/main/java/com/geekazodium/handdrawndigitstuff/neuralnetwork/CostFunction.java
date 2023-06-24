@@ -7,5 +7,5 @@ public interface CostFunction {
 
     float[] derivative(float[] outs,Object trainingDataObj);
 
-    long createKernel(GPUComputeContext context);
+    RunnableKernel createKernel(GPUComputeContext context);
 }

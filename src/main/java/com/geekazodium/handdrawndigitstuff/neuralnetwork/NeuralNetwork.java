@@ -254,7 +254,7 @@ public class NeuralNetwork {
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(0.45f);
+        neuralNetwork.setLearnRate(1f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();

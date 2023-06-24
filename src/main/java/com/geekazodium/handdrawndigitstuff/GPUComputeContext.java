@@ -1,9 +1,6 @@
 package com.geekazodium.handdrawndigitstuff;
 
-import com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractEvaluateLayer;
-import com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractLayer;
-import com.geekazodium.handdrawndigitstuff.neuralnetwork.CostFunction;
-import com.geekazodium.handdrawndigitstuff.neuralnetwork.NeuralNetwork;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.*;
 import com.geekazodium.handdrawndigitstuff.utils.ConsoleStylizer;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
@@ -34,7 +31,7 @@ public class GPUComputeContext {
     private final long[] deviceLocalMaxWorkSize = new long[3];
     private int neuralNetworkDepth;
     private CostFunction costFunction;
-    private long costFunctionKernel;
+    private RunnableKernel costFunctionKernel;
 
     public GPUComputeContext() {
         long[] computeDevices = getPlatformDevices(CL_DEVICE_TYPE_GPU);
@@ -135,7 +132,7 @@ public class GPUComputeContext {
         return stackSizePointer;
     }
 
-    public static abstract class BackPropagateKernels {
+    public static abstract class BackPropagateKernels implements RunnableKernel {
         public abstract long[] getKernels();
 
         public abstract void run(GPUComputeContext context);
@@ -198,12 +195,8 @@ public class GPUComputeContext {
 
     public void train(){
         evaluate();
-        PointerBuffer costFunctionWorkDim = BufferUtils.createPointerBuffer(2);
-        costFunctionWorkDim.put(this.neuralNetworkLayers[neuralNetworkDepth-1].nodeCount);
-        costFunctionWorkDim.put(this.stackSize);
-        costFunctionWorkDim.rewind();
 
-        clEnqueueNDRangeKernel(this.commandQueue,this.costFunctionKernel,2,null,costFunctionWorkDim,null,null,null);
+        this.costFunctionKernel.run(this);
         // float[] gradients = new float[this.stackSize * this.neuralNetworkLayers[neuralNetworkDepth-1].nodeCount];
        // clEnqueueReadBuffer(this.commandQueue,this.layerGradientBuffers[this.neuralNetworkDepth-1],true,0,gradients,null,null);
 

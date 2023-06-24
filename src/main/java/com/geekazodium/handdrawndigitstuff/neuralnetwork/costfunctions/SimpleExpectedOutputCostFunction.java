@@ -2,6 +2,9 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.CostFunction;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.RunnableKernel;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.PointerBuffer;
 
 import static com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractLayer.pointerOf;
 import static org.lwjgl.opencl.CL30.*;
@@ -37,7 +40,7 @@ public class SimpleExpectedOutputCostFunction implements CostFunction {
     }
 
     @Override
-    public long createKernel(GPUComputeContext context) {
+    public RunnableKernel createKernel(GPUComputeContext context) {
         String src = """
                 __kernel void cost(
                         __constant float *expectedResults,
@@ -65,8 +68,34 @@ public class SimpleExpectedOutputCostFunction implements CostFunction {
         long layerSizeBuffer = context.neuralNetworkLayers[context.neuralNetworkLayers.length - 1].getLayerSizeBuffer();
         if(layerSizeBuffer == 0)throw new RuntimeException("null pointer arg can create undefined behavior.");
         clSetKernelArg(costKernel,4,pointerOf(layerSizeBuffer));
+        return new RunnableKernel(){
 
-        return costKernel;
+            @Override
+            public void run(GPUComputeContext context) {
+                PointerBuffer costFunctionWorkDim = BufferUtils.createPointerBuffer(2);
+                costFunctionWorkDim.put(context.neuralNetworkLayers[context.neuralNetworkLayers.length-1].nodeCount);
+                costFunctionWorkDim.put(context.getStackSize());
+                costFunctionWorkDim.rewind();
+                clEnqueueNDRangeKernel(context.getCommandQueue(),costKernel,2,null,costFunctionWorkDim,null,null,null);
+
+                int outputLength = context.neuralNetworkLayers[context.neuralNetworkLayers.length-1].nodeCount * context.getStackSize();
+                float[] ptr = new float[outputLength];
+                clEnqueueReadBuffer(context.getCommandQueue(),costBuffer,true,0, ptr,null,null);
+                clFinish(context.getCommandQueue());
+                Thread thread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        int stackSize = context.getStackSize();
+                        float cost = 0;
+                        for (float v : ptr) {
+                            cost += v / (float) stackSize;
+                        }
+                        System.out.println("Average cost: "+cost);
+                    }
+                });
+                thread.start();
+            }
+        };
     }
 
 }

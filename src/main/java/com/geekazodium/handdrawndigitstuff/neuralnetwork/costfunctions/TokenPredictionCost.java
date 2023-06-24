@@ -2,6 +2,7 @@ package com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.CostFunction;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.RunnableKernel;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TextSection;
 
 public class TokenPredictionCost implements CostFunction {
@@ -62,7 +63,7 @@ public class TokenPredictionCost implements CostFunction {
     }
 
     @Override
-    public long createKernel(GPUComputeContext context) {
-        return 0;
+    public RunnableKernel createKernel(GPUComputeContext context) {
+        return null;
     }
 }
