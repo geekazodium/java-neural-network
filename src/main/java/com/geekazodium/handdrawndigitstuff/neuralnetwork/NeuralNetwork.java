@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "topato_potato.json";
+    public static final String SAVE_PATH = "tears_of_the_gpu.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     public final AbstractLayer[] layers;
@@ -227,29 +227,34 @@ public class NeuralNetwork {
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
                                     new HiddenLayer(512*3),
                                     new HiddenLayer(256*3),
-                                    new HiddenLayer(128*3)
-                            }, ResidualConcatBlock.instantiate(inputNeurons,128*3)),
-                            new ResidualBlockFrame(inputNeurons+128*3, new AbstractLayer[]{
+                                    new HiddenLayer(trainingData.characterSet.size()*10)
+                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*10,0)),
+                            new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
                                     new HiddenLayer(512*3),
                                     new HiddenLayer(256*3),
-                                    new HiddenLayer(128*3)
-                            }, new ResidualAddBlock(inputNeurons+128*3,128*3,0)),
+                                    new HiddenLayer(trainingData.characterSet.size()*10)
+                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*10,trainingData.characterSet.size()*10)),
+                            new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
+                                    new HiddenLayer(512*3),
+                                    new HiddenLayer(256*3),
+                                    new HiddenLayer(trainingData.characterSet.size()*10)
+                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*10,trainingData.characterSet.size()*10*2)),
                             new HiddenLayer(512*4),
-                            new HiddenLayer(256*3),
-                            new HiddenLayer(128*2)
+                            new HiddenLayer(256*4),
+                            new HiddenLayer(128*5)
                     },
                     new OutputLayer(outputNeurons)
             );
             neuralNetwork.serialize(new File(SAVE_PATH));
         }
-        int stackSize = inputSize*16;
+        int stackSize = inputSize*20;
 
         //int batchSize = 12;
 
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(1f/16f);
+        neuralNetwork.setLearnRate(1f/4f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();
@@ -264,6 +269,14 @@ public class NeuralNetwork {
 
         TextSection section = trainingData.getExample();
         section.log();
+
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                testExample(trainingData, neuralNetwork);
+            }
+        });
+        thread.start();
 
         for (int batchCounter = 0; batchCounter < 10000; batchCounter++) {
 //            long startTime = System.currentTimeMillis();
@@ -282,7 +295,7 @@ public class NeuralNetwork {
             float[][] expectedOuts = new float[stackSize][];
             for (int i = 0; i < stackSize; i++) {
                 int characterIndex = i%inputSize;
-                TextSection example = trainingData.getExample();
+                TextSection example = trainingData.getNextExample();
                 float[] data = example.getData(characterIndex);
                 inputs[i] = data;
 
@@ -294,12 +307,12 @@ public class NeuralNetwork {
             float[] stackedInputs = gpuComputeContext.stackInput(inputs);
             gpuComputeContext.setInputs(stackedInputs);
             gpuComputeContext.train();
-            if(batchCounter % 4 == 0){
+            if(batchCounter % 5 == 0){
                 neuralNetwork.serialize(new File(SAVE_PATH));
                 System.out.println("saving network");
             }
             System.out.println();
-            Thread thread = new Thread(new Runnable() {
+            thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     testExample(trainingData, neuralNetwork);

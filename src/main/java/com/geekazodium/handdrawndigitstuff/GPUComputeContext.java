@@ -12,7 +12,6 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static com.geekazodium.handdrawndigitstuff.neuralnetwork.AbstractLayer.EVALUATE_LAYER_ID;
@@ -205,9 +204,8 @@ public class GPUComputeContext {
         costFunctionWorkDim.rewind();
 
         clEnqueueNDRangeKernel(this.commandQueue,this.costFunctionKernel,2,null,costFunctionWorkDim,null,null,null);
-        float[] gradients = new float[this.stackSize * this.neuralNetworkLayers[neuralNetworkDepth-1].nodeCount];
-        clEnqueueReadBuffer(this.commandQueue,this.layerGradientBuffers[this.neuralNetworkDepth-1],true,0,gradients,null,null);
-        clFinish(this.commandQueue);
+        // float[] gradients = new float[this.stackSize * this.neuralNetworkLayers[neuralNetworkDepth-1].nodeCount];
+       // clEnqueueReadBuffer(this.commandQueue,this.layerGradientBuffers[this.neuralNetworkDepth-1],true,0,gradients,null,null);
 
         for (int i = neuralNetworkDepth-1; i >= 0 ; i--) {
             BackPropagateKernels backPropagateKernel = backPropagateKernels[i];
@@ -217,7 +215,6 @@ public class GPUComputeContext {
                 clEnqueueReadBuffer(commandQueue, biasBuffers[i], true, 0, neuralNetworkLayers[i].getBiases(), null, null);
                 clEnqueueReadBuffer(commandQueue, weightBuffers[i], true, 0, neuralNetworkLayers[i].getWeights(), null, null);
             }
-            clFinish(this.commandQueue);
         }
 
 //        float[][] stackedData = this.layerStackedData;
@@ -229,7 +226,7 @@ public class GPUComputeContext {
 //            }
 //            System.out.println("\n");
 //        }
-//        clFinish(this.commandQueue);
+        clFinish(this.commandQueue);
     }
 
     private void evaluate() {
@@ -249,15 +246,13 @@ public class GPUComputeContext {
                     this.commandQueue, layerEvaluateKernel, 2,
                     null, globalWorkSize,null,null,null
             );
-
-            clFinish(this.commandQueue);
         }
-
-        for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
-            long layerEvaluateKernel = evaluateKernels[i];
-            if(layerEvaluateKernel == 0)continue;
-            clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[i],true,0,this.layerStackedData[i],null,null);
-        }
+//
+//        for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
+//            long layerEvaluateKernel = evaluateKernels[i];
+//            if(layerEvaluateKernel == 0)continue;
+////            clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[i],true,0,this.layerStackedData[i],null,null);
+//        }
         clFinish(this.commandQueue);
     }
 
@@ -314,7 +309,7 @@ public class GPUComputeContext {
         return context;
     }
 
-    private static void checkIfSuccess(IntBuffer resultBuffer,String action){
+    public static void checkIfSuccess(IntBuffer resultBuffer,String action){
         int result = resultBuffer.get();
         if(result != CL_SUCCESS) throw new RuntimeException("failed to "+action+", error code:"+result);
     }
@@ -350,6 +345,8 @@ public class GPUComputeContext {
             System.out.println("device incompatible #");
             return new ArrayList<>();
         }
+        logPlatformVersion(platform);
+
         long[] devices = new long[64];
         int deviceCount = deviceCountBuffer.get();
         devicesBuffer.get(devices);
@@ -377,6 +374,16 @@ public class GPUComputeContext {
             devicesList.add(devices[j]);
         }
         return devicesList;
+    }
+
+    private static void logPlatformVersion(long platform) {
+        ByteBuffer platformInfoBuffer = BufferUtils.createByteBuffer(1024);
+        PointerBuffer sizeBuffer = BufferUtils.createPointerBuffer(1);
+        clGetPlatformInfo(platform,CL_PLATFORM_VERSION,platformInfoBuffer,sizeBuffer);
+        long length = sizeBuffer.get();
+        byte[] platformVersion = new byte[Math.toIntExact(length)];
+        platformInfoBuffer.get(platformVersion,0, (int) length);
+        System.out.println(new String(platformVersion));
     }
 
     private static String getAtomicMemoryCapabilities(long device) {

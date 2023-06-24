@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,7 +47,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     private void fillArrayWithRandomValues(float[] array){
         for (int i = 0; i <array.length; i++) {
-            array[i] = (float) ((Math.random()*2d-1d)/20d);
+            array[i] = (float) ((Math.random()*2d-1d)/18d);
         }
     }
 
@@ -506,6 +507,11 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         nodeGradientBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, biasGradients, null);
         weightGradientBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, weightGradients, null);
 //
+//        IntBuffer errorCodeRet = BufferUtils.createIntBuffer(1);
+//        clCreatePipe(gpuContext,CL_MEM_READ_WRITE | CL_MEM_HOST_NO_ACCESS, 4,biasGradients.length, null, errorCodeRet);
+//        GPUComputeContext.checkIfSuccess(errorCodeRet,"create pipe");
+
+//
 //        float[] temporaryWeightGradients = new float[context.getStackSize() * this.previousLayer.nodeCount];
 //        long temporaryWeightGradientsBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, temporaryWeightGradients, null);
 
@@ -577,40 +583,33 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         public void run(GPUComputeContext context) {
 
             long commandQueue = context.getCommandQueue();
-            clFinish(commandQueue);
+
             PointerBuffer biasKernelWorkSize = BufferUtils.createPointerBuffer(2);
             biasKernelWorkSize.clear();
             biasKernelWorkSize.put(this.layerSize);
             biasKernelWorkSize.put(context.getStackSize());
             biasKernelWorkSize.rewind();
-            int i = clEnqueueNDRangeKernel(commandQueue, this.nodeGradientKernel, 2, null, biasKernelWorkSize, null, null, null);
-
-            clFinish(commandQueue);
+            clEnqueueNDRangeKernel(commandQueue, this.nodeGradientKernel, 2, null, biasKernelWorkSize, null, null, null);
 
             PointerBuffer prevLayerGradientKernelSize = BufferUtils.createPointerBuffer(2);
             prevLayerGradientKernelSize.put(this.prevLayerSize);
             prevLayerGradientKernelSize.put(context.getStackSize());
             prevLayerGradientKernelSize.rewind();
-            int i1 = clEnqueueNDRangeKernel(commandQueue, this.previousLayerActivationGradientKernel, 2, null, prevLayerGradientKernelSize, null, null, null);
-
-            clFinish(commandQueue);
+            clEnqueueNDRangeKernel(commandQueue, this.previousLayerActivationGradientKernel, 2, null, prevLayerGradientKernelSize, null, null, null);
 
             PointerBuffer weightGradientKernelSize = BufferUtils.createPointerBuffer(2);
             weightGradientKernelSize.put(this.prevLayerSize);
             weightGradientKernelSize.put(this.layerSize);
             weightGradientKernelSize.rewind();
-            int i_1 = clEnqueueNDRangeKernel(commandQueue, this.weightGradientKernel, 2, null,weightGradientKernelSize,null,null,null);
-
-            clFinish(commandQueue);
+            clEnqueueNDRangeKernel(commandQueue, this.weightGradientKernel, 2, null,weightGradientKernelSize,null,null,null);
 
             PointerBuffer adjustParameterWorkSize = BufferUtils.createPointerBuffer(1);
             adjustParameterWorkSize.put((long) this.prevLayerSize * (long) this.layerSize);
             adjustParameterWorkSize.rewind();
-            int i2 = clEnqueueNDRangeKernel(commandQueue, this.parameterAdjustKernel, 1, null, adjustParameterWorkSize, null, null, null);
+            clEnqueueNDRangeKernel(commandQueue, this.parameterAdjustKernel, 1, null, adjustParameterWorkSize, null, null, null);
 
 //            clEnqueueReadBuffer(commandQueue,evaluateLayer.weightGradientBuffer,true,0,evaluateLayer.weightGradients,null,null);
  //           clEnqueueReadBuffer(commandQueue,evaluateLayer.nodeGradientBuffer,true,0,evaluateLayer.biasGradients,null,null);
-            clFinish(commandQueue);
 
 //            for (int j = 0; j < evaluateLayer.weightGradients.length; j++) {
 //                float weightGradient = evaluateLayer.weightGradients[j];

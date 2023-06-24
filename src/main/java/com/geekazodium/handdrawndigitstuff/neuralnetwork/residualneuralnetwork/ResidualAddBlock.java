@@ -33,7 +33,7 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
         System.arraycopy(in,0,out,0,this.nodeCount);
         for (int i = 0; i < this.inputLength; i++) {
             int index = i + this.startPosition;
-            out[index] += lastLayer[index];
+            out[index] += lastLayer[i];
         }
         return out;
     }

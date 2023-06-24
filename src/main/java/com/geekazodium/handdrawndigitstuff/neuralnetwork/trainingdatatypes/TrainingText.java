@@ -1,5 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes;
 
+import org.w3c.dom.Text;
+
 import java.util.*;
 
 public class TrainingText {
@@ -42,6 +44,14 @@ public class TrainingText {
     public TextSection getExample(){
         int beginIndex = random.nextInt(0, bound);
         return new TextSection(data.subList(beginIndex,beginIndex+this.chunkSize),this.inverseCharset);
+    }
+
+
+    int index = 0;
+    public TextSection getNextExample(){
+        index += random.nextInt(this.chunkSize*2);
+        index %= bound;
+        return new TextSection(data.subList(index,index+this.chunkSize),this.inverseCharset);
     }
 
     public List<TextSection> getExamples(int batchSize) {
