@@ -31,7 +31,7 @@ public class SimpleExpectedOutputCostFunction implements CostFunction {
 
     public void setKernelExpectedResults(GPUComputeContext context, float[][] expectedResultsStack){
         int outputLength = expectedResultsStack[0].length;
-        float[] stacked = new float[expectedResultsStack.length* outputLength];
+        float[] stacked = new float[expectedResultsStack.length * outputLength];
         for (int i = 0; i < expectedResultsStack.length; i++) {
             System.arraycopy(expectedResultsStack[i],0,stacked,outputLength*i,outputLength);
         }
@@ -55,7 +55,13 @@ public class SimpleExpectedOutputCostFunction implements CostFunction {
                     
                     float diff = results[index] - expectedResults[index];
                     
-                    costGradient[index] = 2.0f * diff;
+                    float mul = 2.0f;
+                    
+                    if(expectedResults[index]<0.5){
+                        mul = 0.5f;
+                    }
+                    
+                    costGradient[index] = mul * diff;
                     cost[index] = diff * diff;
                 }
                 """;

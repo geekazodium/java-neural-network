@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
-    public static final String SAVE_PATH = "oh boi.json";
+    public static final String SAVE_PATH = "oh boi but whatever.json";
     private final OutputLayer outputLayer;
     private final InputLayer inputLayer;
     public final AbstractLayer[] layers;
@@ -254,7 +254,7 @@ public class NeuralNetwork {
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(1f);
+        neuralNetwork.setLearnRate(0.075f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();
@@ -313,15 +313,15 @@ public class NeuralNetwork {
             if(batchCounter % 5 == 0){
                 neuralNetwork.serialize(new File(SAVE_PATH));
                 System.out.println("saving network");
+                thread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        testExample(trainingData, neuralNetwork);
+                    }
+                });
+                thread.start();
             }
-            System.out.println();
-            thread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    testExample(trainingData, neuralNetwork);
-                }
-            });
-            thread.start();
+            System.out.println("batch #"+batchCounter);
         }
 
         neuralNetwork.closeGPUTrainingContext();
@@ -375,10 +375,15 @@ public class NeuralNetwork {
     }
 
     private static void testExample(TrainingText trainingData, NeuralNetwork neuralNetwork) {
-        StringBuilder s = new StringBuilder("why are you tired?");
+        char[] chars = new char[trainingData.inverseCharset.size()];
+        trainingData.inverseCharset.forEach((integer, character) -> {
+            chars[integer] = character;
+        });
+        StringBuilder s = new StringBuilder("How does the concentration of baking soda solution affect the rate of photosy");
         for (int c = 0; c < 128; c++) {
             float[] inputs = TextSection.chunkString(s.toString(), trainingData.characterSet, trainingData.inverseCharset);
             float[] outs = neuralNetwork.evaluate(inputs);
+
             int index = 0;
             float highest = -10;
             for (int i = 0; i < outs.length; i++) {
@@ -387,9 +392,33 @@ public class NeuralNetwork {
                     index = i;
                 }
             }
-            System.out.println(highest+","+Arrays.toString(outs));
+
+            StringBuilder sorted = new StringBuilder();
+
+            TreeSet<IndexedOutputs> indexedOutputs = new TreeSet<>();
+            for (int i = 0; i < outs.length; i++) {
+                indexedOutputs.add(new IndexedOutputs(outs[i],chars[i]));
+            }
+            int count = 0;
+            for (IndexedOutputs indexedOutput : indexedOutputs) {
+                count ++;
+                if(count<90)continue;
+                sorted.append(indexedOutput.character + "," + indexedOutput.value + "\n");
+            }
+
+            System.out.println(sorted);
+
+            //System.out.println(highest+","+Arrays.toString(outs));
             s.append(trainingData.inverseCharset.get(index));
             System.out.println(s.toString());
+        }
+    }
+
+    private static record IndexedOutputs(float value,char character) implements Comparable<IndexedOutputs>{
+
+        @Override
+        public int compareTo(IndexedOutputs o) {
+            return Float.compare(this.value, o.value);
         }
     }
 

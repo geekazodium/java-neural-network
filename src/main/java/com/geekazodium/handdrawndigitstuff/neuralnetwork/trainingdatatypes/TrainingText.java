@@ -49,7 +49,7 @@ public class TrainingText {
 
     int index = 0;
     public TextSection getNextExample(){
-        index += random.nextInt(this.chunkSize*2);
+        index += random.nextInt(this.chunkSize,this.chunkSize*2);
         index %= bound;
         return new TextSection(data.subList(index,index+this.chunkSize),this.inverseCharset);
     }

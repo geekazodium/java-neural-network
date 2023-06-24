@@ -34,20 +34,20 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     public void initWeights(){
         int nodeCount = this.previousLayer.nodeCount;
         this.weights = new float[nodeCount*this.nodeCount];
-        fillArrayWithRandomValues(this.weights);
+        fillArrayWithRandomValues(this.weights,0.0605);
     }
     public void initBiases(){
         this.biases = new float[this.nodeCount];
-        fillArrayWithRandomValues(this.biases);
+        fillArrayWithRandomValues(this.biases,0.0405);
     }
 
     public AbstractLayer getPreviousLayer(){
         return previousLayer;
     }
 
-    private void fillArrayWithRandomValues(float[] array){
+    private void fillArrayWithRandomValues(float[] array,double multiplier){
         for (int i = 0; i <array.length; i++) {
-            array[i] = (float) ((Math.random()*2d-1d)/20d);
+            array[i] = (float) ((Math.random()*2d-1d)*multiplier);
         }
     }
 
@@ -463,7 +463,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         String parameterAdjustSrc = """
                 __kernel void parameterAdjust(
                         __constant float *nodeGradients, //equal to biasGradients
-                        __global float *weightGradients,
+                        __constant float *weightGradients,
                         __global float *biasBuffers,
                         __global float *weightBuffers,
                         __constant int *previousLayerSizePointer,
@@ -492,8 +492,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                     
                     float weightAdjustment = weightGradients[neuron];
                     weightBuffers[neuron] += weightAdjustment * -learnRate / stackSizeFloat;
-                    //weightBuffers[neuron] = weightAdjustment;
-                    weightGradients[neuron] = 0;
                 }
                 """;
 
