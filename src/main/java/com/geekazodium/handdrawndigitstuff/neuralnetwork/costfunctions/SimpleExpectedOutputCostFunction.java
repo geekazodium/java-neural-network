@@ -55,13 +55,7 @@ public class SimpleExpectedOutputCostFunction implements CostFunction {
                     
                     float diff = results[index] - expectedResults[index];
                     
-                    float mul = 2.0f;
-                    
-                    if(expectedResults[index]<0.5){
-                        mul = 0.5f;
-                    }
-                    
-                    costGradient[index] = mul * diff;
+                    costGradient[index] = 2.0f * diff;
                     cost[index] = diff * diff;
                 }
                 """;

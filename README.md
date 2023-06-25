@@ -1,5 +1,11 @@
-# message to future geekazodium
+# To-do:
 
-### just use atomics for averaging together the parameter changes you idiot, otherwise you will run out of RAM.
+````
+-MUST REWRITE EVALUATE TO INSTEAD STORE A RUNNABLE KERNEL INSTANCE INSTEAD OF A LONG
+-REWRITE CODE TO MAKE IT LESS CLUTTERED
 
-YES I DID THE MATH, YOU NEED LIKE 200GB OF RAM TO DO THIS.
+-implement softmax activation function.
+-reimplement parts of kernel functionality to accommodate softmax activation.
+-implement gradient function for softmax.
+
+````

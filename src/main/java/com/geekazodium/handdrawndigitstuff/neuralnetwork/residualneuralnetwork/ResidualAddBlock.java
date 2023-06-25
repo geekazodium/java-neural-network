@@ -59,8 +59,8 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
     public String getEvaluateKernelSrc() {
         String kernelSrc = """
             __kernel void evaluate(
-                    __global float *residualBlockInput,
-                    __global float *previousLayer,
+                    __constant float *residualBlockInput,
+                    __constant float *previousLayer,
                     __global float *output,
                     __constant int *residualInputSizePointer,
                     __constant int *additionStartPositionPointer,
@@ -166,7 +166,8 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
             blockStartPositionBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, blockStartPosition, null);
         }
 
-        clSetKernelArg(layerEvaluateKernel,0,pointerOf(context.layerDataBuffers[index-residualBlockFrame.layerDepth()+1]));
+        int residualFrameIndex = index - residualBlockFrame.layerDepth() + 1;
+        clSetKernelArg(layerEvaluateKernel,0,pointerOf(context.layerDataBuffers[residualFrameIndex]));
         clSetKernelArg(layerEvaluateKernel,1,pointerOf(context.layerDataBuffers[index-1]));
         clSetKernelArg(layerEvaluateKernel,2,pointerOf(context.layerDataBuffers[index]));
         clSetKernelArg(layerEvaluateKernel,3,pointerOf(residualInputSizeBuffer));
