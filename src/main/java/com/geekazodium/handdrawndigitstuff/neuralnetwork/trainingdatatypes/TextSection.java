@@ -32,15 +32,35 @@ public class TextSection {
     }
 
     public static float[] chunkData(int endIndex, List<Integer> section, int charsetSize, int sectionSize){
+
         float[] data = new float[sectionSize * charsetSize];
-        int index = (sectionSize-endIndex-1)*charsetSize;
+
+        int shiftLength = sectionSize - endIndex - 1;
         for (int i = 0; i < sectionSize; i++) {
-            if(i>endIndex)break;
-            Integer integer = section.get(i);
-            if(integer<0)continue;
-            data[index + integer] = 1f;
-            index += charsetSize;
+            int offset = i * charsetSize;
+            int listIndex = i - shiftLength;
+            Integer characterToken;
+            if(listIndex >= 0){
+                characterToken = section.get(listIndex);
+            }else {
+                characterToken = 0;
+            }
+            if(characterToken == -1){
+                characterToken = 0;
+            }
+            data[offset + characterToken] = 1.0f;
         }
+//
+//        StringBuilder debug = new StringBuilder();
+//        int index = (sectionSize-endIndex-1)*charsetSize;
+//        for (int i = 0; i < sectionSize; i++) {
+//            if(i>endIndex)break;
+//            Integer integer = section.get(i);
+//            if(integer<0)continue;
+//            debug.append(integer+",");
+//            data[index + integer] = 1f;
+//            index += charsetSize;
+//        }
         return data;
     }
 
@@ -56,6 +76,6 @@ public class TextSection {
             tokenized.add(charset.get(s.charAt(i+index)));
         }
         final ArrayList<Integer> section1 = new ArrayList<>(tokenized);
-        return chunkData(inputLength-1, section1,inverseCharset.size(), section1.size());
+        return chunkData(Math.min(inputLength-1,stringLength), section1,inverseCharset.size(), section1.size());
     }
 }

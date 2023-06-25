@@ -254,7 +254,7 @@ public class NeuralNetwork {
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(0.075f);
+        neuralNetwork.setLearnRate(0.25f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();
@@ -310,9 +310,9 @@ public class NeuralNetwork {
             float[] stackedInputs = gpuComputeContext.stackInput(inputs);
             gpuComputeContext.setInputs(stackedInputs);
             gpuComputeContext.train();
+
             if(batchCounter % 5 == 0){
-                neuralNetwork.serialize(new File(SAVE_PATH));
-                System.out.println("saving network");
+                gpuComputeContext.downloadNetworkFromGPU();
                 thread = new Thread(new Runnable() {
                     @Override
                     public void run() {
@@ -320,6 +320,8 @@ public class NeuralNetwork {
                     }
                 });
                 thread.start();
+                neuralNetwork.serialize(new File(SAVE_PATH));
+                System.out.println("saving network");
             }
             System.out.println("batch #"+batchCounter);
         }
@@ -384,6 +386,19 @@ public class NeuralNetwork {
             float[] inputs = TextSection.chunkString(s.toString(), trainingData.characterSet, trainingData.inverseCharset);
             float[] outs = neuralNetwork.evaluate(inputs);
 
+            //double[] normalized = new double[outs.length];
+
+//            double expSum = 0;
+//            for (float out : outs) {
+//                if(out<=0)continue;
+//                expSum += Math.pow(Math.E,out);
+//            }
+//
+//            for (int i = 0; i < outs.length; i++) {
+//                if(outs[i]<=0)continue;
+//                normalized[i] = Math.pow(Math.E,outs[i])/expSum;
+//            }
+
             int index = 0;
             float highest = -10;
             for (int i = 0; i < outs.length; i++) {
@@ -392,6 +407,17 @@ public class NeuralNetwork {
                     index = i;
                 }
             }
+//
+//            int chosenChar = 0;
+//            Random random = new Random();
+//            double randomCounter = random.nextDouble();
+//            for (int i = 0; i < normalized.length; i++) {
+//                randomCounter -= normalized[i];
+//                if(randomCounter<0){
+//                    chosenChar = i;
+//                    break;
+//                }
+//            }
 
             StringBuilder sorted = new StringBuilder();
 
@@ -399,10 +425,8 @@ public class NeuralNetwork {
             for (int i = 0; i < outs.length; i++) {
                 indexedOutputs.add(new IndexedOutputs(outs[i],chars[i]));
             }
-            int count = 0;
             for (IndexedOutputs indexedOutput : indexedOutputs) {
-                count ++;
-                if(count<90)continue;
+                if(indexedOutput.value<=0)continue;
                 sorted.append(indexedOutput.character + "," + indexedOutput.value + "\n");
             }
 

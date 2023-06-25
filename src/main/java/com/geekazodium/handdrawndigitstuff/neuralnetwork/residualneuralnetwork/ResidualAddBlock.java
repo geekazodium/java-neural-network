@@ -137,8 +137,8 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
                 """;
 
         long residualGradientsKernel = context.getKernel(prevLayerGradientsSrc, "getResidualGradients");
-        clSetKernelArg(residualGradientsKernel,0,pointerOf(this.residualBlockFrame.getMergeGradientBuffer()));
-        clSetKernelArg(residualGradientsKernel,1,pointerOf(context.layerGradientBuffers[this.residualBlockFrame.getIndex()]));
+        clSetKernelArg(residualGradientsKernel,0,pointerOf(context.layerGradientBuffers[index-1]));
+        clSetKernelArg(residualGradientsKernel,1,pointerOf(this.residualBlockFrame.getMergeGradientBuffer()));
         clSetKernelArg(residualGradientsKernel,2,pointerOf(context.layerGradientBuffers[index]));
         clSetKernelArg(residualGradientsKernel,3,pointerOf(residualInputSizeBuffer));
         clSetKernelArg(residualGradientsKernel,4,pointerOf(blockStartPositionBuffer));

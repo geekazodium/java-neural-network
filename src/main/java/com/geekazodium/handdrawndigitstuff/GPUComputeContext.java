@@ -204,10 +204,6 @@ public class GPUComputeContext {
             BackPropagateKernels backPropagateKernel = backPropagateKernels[i];
             if(backPropagateKernel == null)continue;
             backPropagateKernel.run(this);
-            if(neuralNetworkLayers[i] instanceof AbstractEvaluateLayer evaluateLayer) {
-                clEnqueueReadBuffer(commandQueue, biasBuffers[i], true, 0, neuralNetworkLayers[i].getBiases(), null, null);
-                clEnqueueReadBuffer(commandQueue, weightBuffers[i], true, 0, neuralNetworkLayers[i].getWeights(), null, null);
-            }
         }
 
 //        float[][] stackedData = this.layerStackedData;
@@ -220,6 +216,16 @@ public class GPUComputeContext {
 //            System.out.println("\n");
 //        }
         clFinish(this.commandQueue);
+    }
+
+    public void downloadNetworkFromGPU(){
+        for (int i = 0; i < neuralNetworkLayers.length; i++) {
+            if(neuralNetworkLayers[i] instanceof AbstractEvaluateLayer evaluateLayer) {
+                clEnqueueReadBuffer(commandQueue, biasBuffers[i], true, 0, neuralNetworkLayers[i].getBiases(), null, null);
+                clEnqueueReadBuffer(commandQueue, weightBuffers[i], true, 0, neuralNetworkLayers[i].getWeights(), null, null);
+            }
+        }
+        clFinish(commandQueue);
     }
 
     private void evaluate() {
