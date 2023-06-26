@@ -80,12 +80,8 @@ public abstract class AbstractLayer {
         return null;
     }
 
-    public String getEvaluateKernelSrc() {
+    public RunnableKernel getEvaluateKernel(GPUComputeContext context, int index) {
         return null;
-    }
-
-    public void setEvaluateKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
-        //throw new RuntimeException("can not set kernel args for layer without evaluate kernel");
     }
 
     public void createLayerBuffer(long[] layerDataBuffers, float[][] layerStackedData, GPUComputeContext gpuContext, int stackSize, int index) {
@@ -97,7 +93,7 @@ public abstract class AbstractLayer {
         gpuContext.layerGradientBuffers[index] = clCreateBuffer(gpuContext.getGPUContext(),CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,new float[stackSize*this.nodeCount],null);
     }
 
-    public GPUComputeContext.BackPropagateKernels createBackpropagationKernels(GPUComputeContext context, int index){
+    public RunnableKernel createBackpropagationKernels(GPUComputeContext context, int index){
 
         return null;
     }

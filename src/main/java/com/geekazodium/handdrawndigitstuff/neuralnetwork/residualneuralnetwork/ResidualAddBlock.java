@@ -1,6 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.RunnableKernel;
 import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
@@ -56,7 +57,7 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
     }
 
     @Override
-    public String getEvaluateKernelSrc() {
+    public RunnableKernel getEvaluateKernel(GPUComputeContext context, int index) {
         String kernelSrc = """
             __kernel void evaluate(
                     __constant float *residualBlockInput,
@@ -93,12 +94,51 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
                 output[resultLocation] = result;
             }
             """;
-        //System.out.println(kernelSrc);
-        return kernelSrc;
+        long layerEvaluateKernel = context.getKernel(kernelSrc,"evaluate");
+
+        if(prevLayerNodeCountBuffer == 0) {
+            int[] residualInputSize = {this.residualBlockFrame.nodeCount};
+            int[] blockStartPosition = {this.startPosition};
+            int[] previousLayerNodeCount = {this.internalPreviousLayer.nodeCount};
+            int[] layerNodeCount = {this.nodeCount};
+
+            prevLayerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, previousLayerNodeCount, null);
+            layerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, layerNodeCount, null);
+
+            residualInputSizeBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, residualInputSize, null);
+            blockStartPositionBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, blockStartPosition, null);
+        }
+
+        int residualFrameIndex = index - residualBlockFrame.layerDepth() + 1;
+        clSetKernelArg(layerEvaluateKernel,0,pointerOf(context.layerDataBuffers[residualFrameIndex]));
+        clSetKernelArg(layerEvaluateKernel,1,pointerOf(context.layerDataBuffers[index-1]));
+        clSetKernelArg(layerEvaluateKernel,2,pointerOf(context.layerDataBuffers[index]));
+        clSetKernelArg(layerEvaluateKernel,3,pointerOf(residualInputSizeBuffer));
+        clSetKernelArg(layerEvaluateKernel,4,pointerOf(blockStartPositionBuffer));
+        clSetKernelArg(layerEvaluateKernel,5,pointerOf(prevLayerNodeCountBuffer));
+        clSetKernelArg(layerEvaluateKernel,6,pointerOf(layerNodeCountBuffer));
+        return new RunnableKernel() {
+            @Override
+            public void run(GPUComputeContext context) {
+                PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(2);
+                globalWorkSize.put(nodeCount);
+                globalWorkSize.put(context.getStackSize());
+                globalWorkSize.rewind();
+
+                clEnqueueNDRangeKernel(
+                        context.getCommandQueue(), layerEvaluateKernel, 2,
+                        null, globalWorkSize,null,null,null
+                );
+            }
+        };
     }
+    private long prevLayerNodeCountBuffer;
+    private long layerNodeCountBuffer;
+    private long blockStartPositionBuffer;
+    private long residualInputSizeBuffer;
 
     @Override
-    public GPUComputeContext.BackPropagateKernels createBackpropagationKernels(GPUComputeContext context, int index) {
+    public AddBlockBackpropagateKernel createBackpropagationKernels(GPUComputeContext context, int index) {
         String prevLayerGradientsSrc = """
                 __kernel void getResidualGradients(
                         __global float *previousLayerActivationGradients,
@@ -147,47 +187,13 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
         return new AddBlockBackpropagateKernel(residualGradientsKernel);
     }
 
-    private long prevLayerNodeCountBuffer;
-    private long layerNodeCountBuffer;
-    private long blockStartPositionBuffer;
-    private long residualInputSizeBuffer;
-    @Override
-    public void setEvaluateKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
-        if(prevLayerNodeCountBuffer == 0) {
-            int[] residualInputSize = {this.residualBlockFrame.nodeCount};
-            int[] blockStartPosition = {this.startPosition};
-            int[] previousLayerNodeCount = {this.internalPreviousLayer.nodeCount};
-            int[] layerNodeCount = {this.nodeCount};
 
-            prevLayerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, previousLayerNodeCount, null);
-            layerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, layerNodeCount, null);
-
-            residualInputSizeBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, residualInputSize, null);
-            blockStartPositionBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, blockStartPosition, null);
-        }
-
-        int residualFrameIndex = index - residualBlockFrame.layerDepth() + 1;
-        clSetKernelArg(layerEvaluateKernel,0,pointerOf(context.layerDataBuffers[residualFrameIndex]));
-        clSetKernelArg(layerEvaluateKernel,1,pointerOf(context.layerDataBuffers[index-1]));
-        clSetKernelArg(layerEvaluateKernel,2,pointerOf(context.layerDataBuffers[index]));
-        clSetKernelArg(layerEvaluateKernel,3,pointerOf(residualInputSizeBuffer));
-        clSetKernelArg(layerEvaluateKernel,4,pointerOf(blockStartPositionBuffer));
-        clSetKernelArg(layerEvaluateKernel,5,pointerOf(prevLayerNodeCountBuffer));
-        clSetKernelArg(layerEvaluateKernel,6,pointerOf(layerNodeCountBuffer));
-    }
-
-    private class AddBlockBackpropagateKernel extends GPUComputeContext.BackPropagateKernels {
+    private class AddBlockBackpropagateKernel implements RunnableKernel {
         private final long residualGradientsKernel;
 
         public AddBlockBackpropagateKernel(long residualGradientsKernel) {
             this.residualGradientsKernel = residualGradientsKernel;
         }
-
-        @Override
-        public long[] getKernels() {
-            return new long[]{residualGradientsKernel};
-        }
-
         @Override
         public void run(GPUComputeContext context) {
             PointerBuffer workSize = BufferUtils.createPointerBuffer(2);

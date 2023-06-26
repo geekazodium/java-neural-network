@@ -16,12 +16,15 @@ import static org.lwjgl.opencl.CL30.*;
 
 public class GPUComputeContext {
 
+    private int stackSize = 0;
+
+    public RunnableKernel[] backPropagateKernels;
+    private RunnableKernel[] layerEvaluateKernels;
 
     private final long gpuComputeDevice;
     public long[] weightBuffers;
     public long[] biasBuffers;
     private int[] layerTypes;
-    private long[] layerEvaluateKernels;
     public long layerTypeBuffer;
 
     public AbstractLayer[] neuralNetworkLayers;
@@ -92,17 +95,14 @@ public class GPUComputeContext {
     }
 
     public void compileNetworkLayerKernels(){
-        this.layerEvaluateKernels = new long[this.neuralNetworkDepth];
+        this.layerEvaluateKernels = new RunnableKernel[this.neuralNetworkDepth];
         for (int i = 0; i < this.neuralNetworkDepth; i++) {
-            String evaluateKernelSrc = this.neuralNetworkLayers[i].getEvaluateKernelSrc();
-            if(evaluateKernelSrc == null)continue;
-            layerEvaluateKernels[i] = getKernel(gpuComputeDevice, evaluateKernelSrc, "evaluate");
+            RunnableKernel evaluateKernel = this.neuralNetworkLayers[i].getEvaluateKernel(this, i);
+            if(evaluateKernel == null)continue;
+            layerEvaluateKernels[i] = evaluateKernel;
         }
     }
 
-    private int stackSize = 0;
-
-    public BackPropagateKernels[] backPropagateKernels;
 
     public long[] layerDataBuffers;
     public long[] preActivationBuffers;
@@ -130,13 +130,6 @@ public class GPUComputeContext {
 
     public long getStackSizePointer() {
         return stackSizePointer;
-    }
-
-    public static abstract class BackPropagateKernels implements RunnableKernel {
-        public abstract long[] getKernels();
-
-        public abstract void run(GPUComputeContext context);
-
     }
 
     public void setStackSize(int stackSize){
@@ -179,43 +172,56 @@ public class GPUComputeContext {
     }
 
     public void createBackpropagationKernels(){
-        this.backPropagateKernels = new BackPropagateKernels[this.neuralNetworkDepth];
+        this.backPropagateKernels = new RunnableKernel[this.neuralNetworkDepth];
         for (int i = 0; i < this.neuralNetworkLayers.length; i++) {
             backPropagateKernels[i] = neuralNetworkLayers[i].createBackpropagationKernels(this, i);
         }
     }
 
-    public void setKernelArgs(){
-        long[] evaluateKernels = this.layerEvaluateKernels;
-        for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
-            long layerEvaluateKernel = evaluateKernels[i];
-            neuralNetworkLayers[i].setEvaluateKernelArgs(layerEvaluateKernel,this, this.layerStackedData, i);
-        }
-    }
 
-    public void train(){
-        evaluate();
-
+    public void train(boolean debugNetwork){
+        this.evaluate();
         this.costFunctionKernel.run(this);
-        // float[] gradients = new float[this.stackSize * this.neuralNetworkLayers[neuralNetworkDepth-1].nodeCount];
-       // clEnqueueReadBuffer(this.commandQueue,this.layerGradientBuffers[this.neuralNetworkDepth-1],true,0,gradients,null,null);
-
+        if(debugNetwork) {
+            System.out.println("neuron activations");
+            for (int i = 0; i < this.neuralNetworkDepth; i++) {
+                float[] layerStackedData = new float[this.stackSize * neuralNetworkLayers[i].nodeCount];
+                clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[i],true,0,layerStackedData,null,null);
+                clFinish(this.commandQueue);
+                logStackArray(layerStackedData,neuralNetworkLayers[i],128,4);
+                System.out.println("\n");
+            }
+        }
         for (int i = neuralNetworkDepth-1; i >= 0 ; i--) {
-            BackPropagateKernels backPropagateKernel = backPropagateKernels[i];
+            RunnableKernel backPropagateKernel = backPropagateKernels[i];
             if(backPropagateKernel == null)continue;
             backPropagateKernel.run(this);
         }
+        if(debugNetwork) {
+            System.out.println("neuron gradients");
+            for (int i = 0; i < neuralNetworkDepth; i++) {
+                float[] gradients = new float[this.stackSize * this.neuralNetworkLayers[i].nodeCount];
+                clEnqueueReadBuffer(this.commandQueue,this.layerGradientBuffers[i],true,0,gradients,null,null);
+                clFinish(this.commandQueue);
+                logStackArray(gradients,neuralNetworkLayers[i],128,4);
+                System.out.println("\n");
+            }
+        }
 
-//        float[][] stackedData = this.layerStackedData;
-//        for (int j = 0; j < stackedData.length && j < 4; j++) {
-//            float[] layerStackedData = stackedData[j];
-//            for (int i = 0; i < layerStackedData.length && i < 2048; i++) {
-//                if ((i % neuralNetworkLayers[j].nodeCount) == 0) System.out.println("\n");
-//                System.out.print(layerStackedData[i] + " ");
-//            }
-//            System.out.println("\n");
-//        }
         clFinish(this.commandQueue);
+    }
+
+    private void logStackArray(float[] layerStackedData,AbstractLayer layer,int maxNeurons,int maxDepth) {
+        for (int stackLayer = 0; stackLayer < maxDepth; stackLayer++) {
+            int stackOffset = layer.nodeCount * stackLayer;
+            int neuronsOut = Math.min(maxNeurons, layer.nodeCount);
+            StringBuilder builder = new StringBuilder();
+            for (int n = 0; n < neuronsOut;n++){
+                builder.append(layerStackedData[n + stackOffset]).append(" \t");
+            }
+            if(neuronsOut != layer.nodeCount)builder.append("...");
+            System.out.println(builder);
+        }
     }
 
     public void downloadNetworkFromGPU(){
@@ -229,29 +235,15 @@ public class GPUComputeContext {
     }
 
     private void evaluate() {
-        long[] evaluateKernels = this.layerEvaluateKernels;
+        RunnableKernel[] evaluateKernels = this.layerEvaluateKernels;
         for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
-            long layerEvaluateKernel = evaluateKernels[i];
+            RunnableKernel layerEvaluateKernel = evaluateKernels[i];
             AbstractLayer layer = this.neuralNetworkLayers[i];
 
-            if(layerEvaluateKernel == 0)continue;
+            if(layerEvaluateKernel == null)continue;
 
-            PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(2);
-            globalWorkSize.put(layer.nodeCount);
-            globalWorkSize.put(stackSize);
-            globalWorkSize.rewind();
-
-            clEnqueueNDRangeKernel(
-                    this.commandQueue, layerEvaluateKernel, 2,
-                    null, globalWorkSize,null,null,null
-            );
+            layerEvaluateKernel.run(this);
         }
-//
-//        for (int i = 0, evaluateKernelsLength = evaluateKernels.length; i < evaluateKernelsLength; i++) {
-//            long layerEvaluateKernel = evaluateKernels[i];
-//            if(layerEvaluateKernel == 0)continue;
-////            clEnqueueReadBuffer(this.commandQueue,this.layerDataBuffers[i],true,0,this.layerStackedData[i],null,null);
-//        }
         clFinish(this.commandQueue);
     }
 

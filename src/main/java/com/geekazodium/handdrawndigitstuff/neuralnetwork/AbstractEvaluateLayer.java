@@ -6,7 +6,6 @@ import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
-import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -22,6 +21,8 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     private long nodeGradientBuffer;
     public float[] biasGradients;
     public float[] weightGradients;
+    private long weightBuffer;
+    private long biasBuffer;
 
     public AbstractEvaluateLayer(int nodes) {
         super(nodes);
@@ -314,9 +315,11 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     @Override
     public LayerBuffers createBuffer(long gpuContext) {
+        this.weightBuffer = clCreateBuffer(gpuContext,CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, this.weights,null);
+        biasBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, this.biases, null);
         return new LayerBuffers(
-                clCreateBuffer(gpuContext,CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, this.weights,null),
-                clCreateBuffer(gpuContext,CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, this.biases,null),
+                this.weightBuffer,
+                biasBuffer,
                 EVALUATE_LAYER_ID
         );
     }
@@ -337,7 +340,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     }
 
     @Override
-    public String getEvaluateKernelSrc() {
+    public RunnableKernel getEvaluateKernel(GPUComputeContext context, int index) {
         String kernelSrc = """ 
                 __kernel void evaluate(
                         __constant float *weights,
@@ -369,12 +372,40 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                     output[resultLocation] = """ + activationFunctionString("result") + """
                 }
                 """;
-        //System.out.println(kernelSrc);
-        return kernelSrc;
+        long layerEvaluateKernel = context.getKernel(kernelSrc,"evaluate");
+        if(prevLayerNodeCountBuffer == 0) {
+            int[] _prevLayerNodeCount = new int[]{this.previousLayer.nodeCount};
+            int[] _layerNodeCount = new int[]{this.nodeCount};
+
+            prevLayerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _prevLayerNodeCount, null);
+            layerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _layerNodeCount, null);
+        }
+
+        clSetKernelArg(layerEvaluateKernel,0,pointerOf(weightBuffer));
+        clSetKernelArg(layerEvaluateKernel,1,pointerOf(biasBuffer));
+        clSetKernelArg(layerEvaluateKernel,2,pointerOf(context.layerDataBuffers[index-1]));
+        clSetKernelArg(layerEvaluateKernel,3,pointerOf(context.preActivationBuffers[index]));
+        clSetKernelArg(layerEvaluateKernel,4,pointerOf(context.layerDataBuffers[index]));
+        clSetKernelArg(layerEvaluateKernel,5,pointerOf(prevLayerNodeCountBuffer));
+        clSetKernelArg(layerEvaluateKernel,6,pointerOf(layerNodeCountBuffer));
+        return new RunnableKernel() {
+            @Override
+            public void run(GPUComputeContext context) {
+                PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(2);
+                globalWorkSize.put(nodeCount);
+                globalWorkSize.put(context.getStackSize());
+                globalWorkSize.rewind();
+
+                clEnqueueNDRangeKernel(
+                        context.getCommandQueue(), layerEvaluateKernel, 2,
+                        null, globalWorkSize,null,null,null
+                );
+            }
+        };
     }
 
     @Override
-    public GPUComputeContext.BackPropagateKernels createBackpropagationKernels(GPUComputeContext context, int index){
+    public RunnableKernel createBackpropagationKernels(GPUComputeContext context, int index){
         String nodeGradientsSrc = """ 
                 __kernel void getLayerNodeGradient(
                         __constant float *preActivations,
@@ -510,14 +541,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         weightGradients = new float[this.nodeCount * this.previousLayer.nodeCount];
         nodeGradientBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, biasGradients, null);
         weightGradientBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, weightGradients, null);
-//
-//        IntBuffer errorCodeRet = BufferUtils.createIntBuffer(1);
-//        clCreatePipe(gpuContext,CL_MEM_READ_WRITE | CL_MEM_HOST_NO_ACCESS, 4,biasGradients.length, null, errorCodeRet);
-//        GPUComputeContext.checkIfSuccess(errorCodeRet,"create pipe");
-
-//
-//        float[] temporaryWeightGradients = new float[context.getStackSize() * this.previousLayer.nodeCount];
-//        long temporaryWeightGradientsBuffer = clCreateBuffer(gpuContext, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, temporaryWeightGradients, null);
 
         List<Integer> resultList = new ArrayList<>();
         resultList.add(clSetKernelArg(layerNodeGradientKernel,0,pointerOf(context.preActivationBuffers[index])));
@@ -557,7 +580,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         return new EvaluateBackpropagateKernel(layerNodeGradientKernel,prevLayerActivationGradientKernel,weightGradientKernel,this.nodeCount,this.previousLayer.nodeCount,parameterAdjustKernel,this);
     }
 
-    private static class EvaluateBackpropagateKernel extends GPUComputeContext.BackPropagateKernels{
+    private static class EvaluateBackpropagateKernel implements RunnableKernel{
 
         private final long nodeGradientKernel;
         private final long previousLayerActivationGradientKernel;
@@ -576,11 +599,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             this.layerSize = layerSize;
             this.prevLayerSize = prevLayerSize;
             this.evaluateLayer = evaluateLayer;
-        }
-
-        @Override
-        public long[] getKernels() {
-            return new long[]{nodeGradientKernel, previousLayerActivationGradientKernel};
         }
 
         @Override
@@ -627,31 +645,11 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     long prevLayerNodeCountBuffer = 0;
     long layerNodeCountBuffer = 0;
 
-    @Override
-    public void setEvaluateKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
-        if(prevLayerNodeCountBuffer == 0) {
-            int[] _prevLayerNodeCount = new int[]{this.previousLayer.nodeCount};
-            int[] _layerNodeCount = new int[]{this.nodeCount};
-
-            prevLayerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _prevLayerNodeCount, null);
-            layerNodeCountBuffer = clCreateBuffer(context.getGPUContext(), CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, _layerNodeCount, null);
-        }
-
-        clSetKernelArg(layerEvaluateKernel,0,pointerOf(context.weightBuffers[index]));
-        clSetKernelArg(layerEvaluateKernel,1,pointerOf(context.biasBuffers[index]));
-        clSetKernelArg(layerEvaluateKernel,2,pointerOf(context.layerDataBuffers[index-1]));
-        clSetKernelArg(layerEvaluateKernel,3,pointerOf(context.preActivationBuffers[index]));
-        clSetKernelArg(layerEvaluateKernel,4,pointerOf(context.layerDataBuffers[index]));
-        clSetKernelArg(layerEvaluateKernel,5,pointerOf(prevLayerNodeCountBuffer));
-        clSetKernelArg(layerEvaluateKernel,6,pointerOf(layerNodeCountBuffer));
-
-    }
-
     private String activationFunctionString(String result){
-        return " ("+result+">0)?"+result+":"+result+"* 0.01f;\n";
+        return this.activationFunction.getKernelString(result);
     }
 
-    private String activationGradientString(String result){
-        return " (("+result+">0)? 1.0f : 0.01f);\n";
+    private String activationGradientString(String gradient){
+        return this.activationFunction.getGradientKernelString(gradient);
     }
 }

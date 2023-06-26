@@ -1,6 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.RunnableKernel;
 import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
@@ -48,7 +49,7 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
         return RESIDUAL_CONCAT_ID;
     }
     @Override
-    public String getEvaluateKernelSrc() {
+    public RunnableKernel getEvaluateKernel(GPUComputeContext context, int index) {
         String kernelSrc = """
             __kernel void evaluate(
                     __global float *residualBlockInput,
@@ -83,15 +84,8 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
                 output[resultLocation] = result;
             }
             """;
-        //System.out.println(kernelSrc);
-        return kernelSrc;
-    }
+        long layerEvaluateKernel = context.getKernel(kernelSrc,"evaluate");
 
-    private long prevLayerNodeCountBuffer;
-    private long layerNodeCountBuffer;
-    private long residualInputSizeBuffer;
-    @Override
-    public void setEvaluateKernelArgs(long layerEvaluateKernel, GPUComputeContext context, float[][] layerData, int index) {
         if(prevLayerNodeCountBuffer == 0) {
             int[] residualInputSize = {this.residualBlockFrame.nodeCount};
             int[] previousLayerNodeCount = {this.internalPreviousLayer.nodeCount};
@@ -109,11 +103,28 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
         clSetKernelArg(layerEvaluateKernel,3,pointerOf(residualInputSizeBuffer));
         clSetKernelArg(layerEvaluateKernel,4,pointerOf(prevLayerNodeCountBuffer));
         clSetKernelArg(layerEvaluateKernel,5,pointerOf(layerNodeCountBuffer));
+        return new RunnableKernel() {
+            @Override
+            public void run(GPUComputeContext context) {
+                PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(2);
+                globalWorkSize.put(nodeCount);
+                globalWorkSize.put(context.getStackSize());
+                globalWorkSize.rewind();
+
+                clEnqueueNDRangeKernel(
+                        context.getCommandQueue(), layerEvaluateKernel, 2,
+                        null, globalWorkSize,null,null,null
+                );
+            }
+        };
     }
 
+    private long prevLayerNodeCountBuffer;
+    private long layerNodeCountBuffer;
+    private long residualInputSizeBuffer;
 
     @Override
-    public GPUComputeContext.BackPropagateKernels createBackpropagationKernels(GPUComputeContext context, int index) {
+    public RunnableKernel createBackpropagationKernels(GPUComputeContext context, int index) {
         String prevLayerGradientsSrc = """
                 __kernel void getResidualGradients(
                         __global float *previousLayerActivationGradients,
@@ -156,11 +167,7 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
         clSetKernelArg(residualGradientsKernel,3,pointerOf(residualInputSizeBuffer));
         clSetKernelArg(residualGradientsKernel,4,pointerOf(prevLayerNodeCountBuffer));
         clSetKernelArg(residualGradientsKernel,5,pointerOf(layerNodeCountBuffer));
-        return new GPUComputeContext.BackPropagateKernels() {
-            @Override
-            public long[] getKernels() {
-                return new long[]{residualGradientsKernel};
-            }
+        return new RunnableKernel() {
 
             @Override
             public void run(GPUComputeContext context) {

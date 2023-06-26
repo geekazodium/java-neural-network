@@ -259,7 +259,7 @@ public class NeuralNetwork {
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();
         gpuComputeContext.createStackedLayerBuffers();
-        gpuComputeContext.setKernelArgs();
+        gpuComputeContext.compileNetworkLayerKernels();
         gpuComputeContext.createBackpropagationKernels();
         gpuComputeContext.updateStackSizeBuffer();
         gpuComputeContext.updateLearnRateBuffer(neuralNetwork.learnRate);
@@ -270,27 +270,9 @@ public class NeuralNetwork {
         TextSection section = trainingData.getExample();
         section.log();
 
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                testExample(trainingData, neuralNetwork);
-            }
-        });
-        thread.start();
+        //runTestExample(trainingData,neuralNetwork);
 
         for (int batchCounter = 0; batchCounter < 10000; batchCounter++) {
-//            long startTime = System.currentTimeMillis();
-//            neuralNetwork.batchMultithreaded(
-//                    trainingData.getExamples(batchSize),
-//                    new TokenPredictionTrainingFunction(),
-//                    trainingThreadLimit
-//            );
-//            long now = System.currentTimeMillis();
-//            System.out.println("batch #"+(batchCounter+1)+" completed in:"+(now-startTime)+"ms");
-//
-//            neuralNetwork.serialize(new File(SAVE_PATH));
-//            testExample(trainingData,neuralNetwork);
-
             float[][] inputs = new float[stackSize][];
             float[][] expectedOuts = new float[stackSize][];
             TextSection example = null;
@@ -309,17 +291,11 @@ public class NeuralNetwork {
             expectedOutputCostFunction.setKernelExpectedResults(gpuComputeContext,expectedOuts);
             float[] stackedInputs = gpuComputeContext.stackInput(inputs);
             gpuComputeContext.setInputs(stackedInputs);
-            gpuComputeContext.train();
+            gpuComputeContext.train(true);
 
-            if(batchCounter % 5 == 0){
+            if(batchCounter % 5 == 5 - 1){
                 gpuComputeContext.downloadNetworkFromGPU();
-                thread = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        testExample(trainingData, neuralNetwork);
-                    }
-                });
-                thread.start();
+                //runTestExample(trainingData, neuralNetwork);
                 neuralNetwork.serialize(new File(SAVE_PATH));
                 System.out.println("saving network");
             }
@@ -327,6 +303,17 @@ public class NeuralNetwork {
         }
 
         neuralNetwork.closeGPUTrainingContext();
+    }
+
+    private static void runTestExample(TrainingText trainingData, NeuralNetwork neuralNetwork) {
+        Thread thread;
+        thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                testExample(trainingData, neuralNetwork);
+            }
+        });
+        thread.start();
     }
 
     public static final int DEFAULT_USE = 0;
@@ -363,7 +350,6 @@ public class NeuralNetwork {
         gpuComputeContext.setNeuralNetwork(this);
         gpuComputeContext.createNetworkBuffers();
         gpuComputeContext.uploadNetworkToGPU();
-        gpuComputeContext.compileNetworkLayerKernels();
     }
 
     public void closeGPUTrainingContext(){

@@ -354,7 +354,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     }
 
     @Override
-    public GPUComputeContext.BackPropagateKernels createBackpropagationKernels(GPUComputeContext context, int index) {
+    public RunnableKernel createBackpropagationKernels(GPUComputeContext context, int index) {
         String prevLayerGradientsSrc = """
                 __kernel void getResidualGradients(
                         __global float *previousLayerActivationGradients,
@@ -387,11 +387,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         clSetKernelArg(residualGradientsKernel,1,pointerOf(context.layerGradientBuffers[index]));
         clSetKernelArg(residualGradientsKernel,2,pointerOf(this.getMergeGradientBuffer()));
         clSetKernelArg(residualGradientsKernel,3,pointerOf(this.layerNodeCountBuffer));
-        return new GPUComputeContext.BackPropagateKernels() {
-            @Override
-            public long[] getKernels() {
-                return new long[0];
-            }
+        return new RunnableKernel() {
 
             @Override
             public void run(GPUComputeContext context) {
