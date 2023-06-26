@@ -36,7 +36,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     public void initWeights(){
         int nodeCount = this.previousLayer.nodeCount;
         this.weights = new float[nodeCount*this.nodeCount];
-        fillArrayWithRandomValuesNormalDist(this.weights,0.05);
+        fillArrayWithRandomValuesNormalDist(this.weights,0.028);
     }
     public void initBiases(){
         this.biases = new float[this.nodeCount];
