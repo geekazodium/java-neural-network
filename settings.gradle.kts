@@ -1,2 +1,2 @@
-rootProject.name = "handdrawn-digit-test"
+rootProject.name = "java-neural-network"
 
