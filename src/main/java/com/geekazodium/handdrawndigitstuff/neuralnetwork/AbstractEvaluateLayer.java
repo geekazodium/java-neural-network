@@ -34,7 +34,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     public void initWeights(){
         int nodeCount = this.previousLayer.nodeCount;
         this.weights = new float[nodeCount*this.nodeCount];
-        fillArrayWithRandomValues(this.weights,0.045);
+        fillArrayWithRandomValuesNormalDist(this.weights,0.05);
     }
     public void initBiases(){
         this.biases = new float[this.nodeCount];
@@ -48,6 +48,12 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     private void fillArrayWithRandomValues(float[] array,double multiplier){
         for (int i = 0; i <array.length; i++) {
             array[i] = (float) ((Math.random()*2d-1d)*multiplier);
+        }
+    }
+
+    private void fillArrayWithRandomValuesNormalDist(float[] array, double multiplier) {
+        for (int i = 0; i <array.length; i++) {
+            array[i] = (float) ((Math.sqrt(-2*Math.log(Math.random())) * Math.cos(2d*Math.PI*Math.random()))*multiplier);
         }
     }
 
