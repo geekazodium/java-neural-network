@@ -1,6 +1,6 @@
-package com.geekazodium.handdrawndigitstuff.neuralnetwork;
+package com.geekazodium.handdrawndigitstuff.neuralnetwork.activationfunctions;
 
-public class LeakyRelU implements ActivationFunction{
+public class LeakyRelU implements ActivationFunction {
     @Override
     public float activation(float in) {
         return  (in>0)?in:0.01f*in;

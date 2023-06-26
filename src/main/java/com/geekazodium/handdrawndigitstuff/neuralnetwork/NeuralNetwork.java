@@ -1,11 +1,12 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.activationfunctions.ActivationFunction;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.activationfunctions.LeakyRelU;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions.SimpleExpectedOutputCostFunction;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.costfunctions.TokenPredictionCost;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualAddBlock;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualBlockFrame;
-import com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork.ResidualConcatBlock;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TrainingText;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes.TextSection;
 import com.google.gson.*;
@@ -58,6 +59,10 @@ public class NeuralNetwork {
                 evaluateLayer.setActivationFunction(activationFunction);
             }
         }
+    }
+
+    public void incrementBatchCount(){
+        batchCount++;
     }
 
 
@@ -291,9 +296,11 @@ public class NeuralNetwork {
             expectedOutputCostFunction.setKernelExpectedResults(gpuComputeContext,expectedOuts);
             float[] stackedInputs = gpuComputeContext.stackInput(inputs);
             gpuComputeContext.setInputs(stackedInputs);
-            gpuComputeContext.train(true);
+            boolean saveBatch = batchCounter % 5 == 5 - 1;
 
-            if(batchCounter % 5 == 5 - 1){
+            gpuComputeContext.train(saveBatch);
+
+            if(saveBatch){
                 gpuComputeContext.downloadNetworkFromGPU();
                 //runTestExample(trainingData, neuralNetwork);
                 neuralNetwork.serialize(new File(SAVE_PATH));

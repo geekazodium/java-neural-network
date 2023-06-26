@@ -1,6 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.activationfunctions.ActivationFunction;
 
 import static org.lwjgl.opencl.CL30.*;
 

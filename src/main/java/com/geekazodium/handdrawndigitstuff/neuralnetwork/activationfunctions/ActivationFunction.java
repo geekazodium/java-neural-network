@@ -1,4 +1,4 @@
-package com.geekazodium.handdrawndigitstuff.neuralnetwork;
+package com.geekazodium.handdrawndigitstuff.neuralnetwork.activationfunctions;
 
 public interface ActivationFunction {
     float activation(float in);

@@ -1,5 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.activationfunctions.ActivationFunction;
+
 public interface EvaluateLayer extends NonInputLayer{
     String name();
 

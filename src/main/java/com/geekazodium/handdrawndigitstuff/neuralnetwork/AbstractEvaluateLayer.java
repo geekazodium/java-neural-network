@@ -1,6 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.activationfunctions.ActivationFunction;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
@@ -552,8 +553,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,1,pointerOf(context.layerDataBuffers[index-1])));
         resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,2,pointerOf(context.weightBuffers[index])));
         resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,3,pointerOf(context.layerGradientBuffers[index-1])));
-        //resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,4,pointerOf(weightGradientBuffer)));
-        //resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,5,pointerOf(temporaryWeightGradientsBuffer)));
         resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,4,pointerOf(this.prevLayerNodeCountBuffer)));
         resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,5,pointerOf(this.layerNodeCountBuffer)));
         resultList.add(clSetKernelArg(prevLayerActivationGradientKernel,6,pointerOf(context.getStackSizePointer())));
@@ -567,7 +566,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         resultList.add(clSetKernelArg(weightGradientKernel,5,pointerOf(context.getStackSizePointer())));
 
         long parameterAdjustKernel = context.getKernel(parameterAdjustSrc, "parameterAdjust");
-
         resultList.add(clSetKernelArg(parameterAdjustKernel,0,pointerOf(nodeGradientBuffer)));
         resultList.add(clSetKernelArg(parameterAdjustKernel,1,pointerOf(weightGradientBuffer)));
         resultList.add(clSetKernelArg(parameterAdjustKernel,2,pointerOf(context.biasBuffers[index])));

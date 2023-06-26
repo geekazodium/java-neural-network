@@ -4,13 +4,8 @@
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="MAIN_CLASS_NAME" value="com.geekazodium.handdrawndigitstuff.neuralnetwork.NeuralNetwork" />
     <module name="com.geekazodium.handdrawn-digit-test.main" />
+    <option name="VM_PARAMETERS" value="-Xmx16G" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/NeuralNetwork" />
-    <extension name="coverage">
-      <pattern>
-        <option name="PATTERN" value="com.geekazodium.handdrawndigitstuff.neuralnetwork.*" />
-        <option name="ENABLED" value="true" />
-      </pattern>
-    </extension>
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

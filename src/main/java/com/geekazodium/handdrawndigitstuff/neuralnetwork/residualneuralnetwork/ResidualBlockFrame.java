@@ -1,6 +1,7 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.residualneuralnetwork;
 
 import com.geekazodium.handdrawndigitstuff.GPUComputeContext;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.activationfunctions.ActivationFunction;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.*;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;

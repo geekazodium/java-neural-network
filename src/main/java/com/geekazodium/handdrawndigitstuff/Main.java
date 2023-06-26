@@ -1,6 +1,6 @@
 package com.geekazodium.handdrawndigitstuff;
 
-import com.geekazodium.handdrawndigitstuff.neuralnetwork.LeakyRelU;
+import com.geekazodium.handdrawndigitstuff.neuralnetwork.activationfunctions.LeakyRelU;
 import com.geekazodium.handdrawndigitstuff.neuralnetwork.NeuralNetwork;
 
 import javax.swing.*;

@@ -35,6 +35,7 @@ public class GPUComputeContext {
     private int neuralNetworkDepth;
     private CostFunction costFunction;
     private RunnableKernel costFunctionKernel;
+    private NeuralNetwork neuralNetwork;
 
     public GPUComputeContext() {
         long[] computeDevices = getPlatformDevices(CL_DEVICE_TYPE_GPU);
@@ -56,6 +57,7 @@ public class GPUComputeContext {
             AbstractLayer[] array = layer.getAsLayerArray();
             System.arraycopy(array, 0, this.neuralNetworkLayers, index, array.length);
         }
+        this.neuralNetwork = neuralNetwork;
     }
 
     public void createNetworkBuffers() {
@@ -209,6 +211,7 @@ public class GPUComputeContext {
         }
 
         clFinish(this.commandQueue);
+        neuralNetwork.incrementBatchCount();
     }
 
     private void logStackArray(float[] layerStackedData,AbstractLayer layer,int maxNeurons,int maxDepth) {
