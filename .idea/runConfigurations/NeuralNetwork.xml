@@ -2,8 +2,8 @@
   <configuration default="false" name="NeuralNetwork" type="Application" factoryName="Application" nameIsGenerated="true">
     <option name="ALTERNATIVE_JRE_PATH" value="openjdk-19" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
-    <option name="MAIN_CLASS_NAME" value="com.geekazodium.handdrawndigitstuff.neuralnetwork.NeuralNetwork" />
-    <module name="com.geekazodium.handdrawn-digit-test.main" />
+    <option name="MAIN_CLASS_NAME" value="com.geekazodium.javaneuralnetwork.neuralnetwork.NeuralNetwork" />
+    <module name="java-neural-network.main" />
     <option name="VM_PARAMETERS" value="-Xmx16G" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/NeuralNetwork" />
     <method v="2">
