@@ -1,7 +1,5 @@
 package com.geekazodium.handdrawndigitstuff.neuralnetwork.trainingdatatypes;
 
-import org.w3c.dom.Text;
-
 import java.util.*;
 
 public class TrainingText {

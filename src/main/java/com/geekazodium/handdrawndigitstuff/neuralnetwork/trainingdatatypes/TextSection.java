@@ -50,17 +50,6 @@ public class TextSection {
             }
             data[offset + characterToken] = 1.0f;
         }
-//
-//        StringBuilder debug = new StringBuilder();
-//        int index = (sectionSize-endIndex-1)*charsetSize;
-//        for (int i = 0; i < sectionSize; i++) {
-//            if(i>endIndex)break;
-//            Integer integer = section.get(i);
-//            if(integer<0)continue;
-//            debug.append(integer+",");
-//            data[index + integer] = 1f;
-//            index += charsetSize;
-//        }
         return data;
     }
 

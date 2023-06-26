@@ -7,5 +7,5 @@
 -implement softmax activation function.
 -reimplement parts of kernel functionality to accommodate softmax activation.
 -implement gradient function for softmax.
-
+-create more RAM and Drive mem efficient file storage format for neural network.
 ````
