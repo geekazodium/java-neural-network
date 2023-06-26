@@ -30,21 +30,7 @@ public class TokenPredictionCost implements CostFunction {
     public void setNext(float next) {
         this.next = next;
     }
-//    @Override
-//    public float[] cost(float[] outs, Object trainingDataObj) {
-//        TrainingTextSection image = ((TrainingTextSection) trainingDataObj);
-//        float[] costs = new float[10];
-//        for (int i = 0; i < outs.length; i++) {
-//            if (i == image.label) {
-//                costs[i] = (outs[i] - 1) * (outs[i] - 1);
-//            } else {
-//                costs[i] = (outs[i] - 0) * (outs[i] - 0);
-//            }
-//        }
-//        return costs;
-//    }
-//
-    @Override
+@Override
     public float[] derivative(float[] outs, Object trainingDataObj) {
         TextSection textSection = ((TextSection) trainingDataObj);
         float[] derivatives = new float[textSection.inverseCharset.size()];

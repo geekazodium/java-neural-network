@@ -427,11 +427,11 @@ public class NeuralNetwork {
 
             //System.out.println(highest+","+Arrays.toString(outs));
             s.append(trainingData.inverseCharset.get(index));
-            System.out.println(s.toString());
+            System.out.println(s);
         }
     }
 
-    private static record IndexedOutputs(float value,char character) implements Comparable<IndexedOutputs>{
+    private record IndexedOutputs(float value, char character) implements Comparable<IndexedOutputs>{
 
         @Override
         public int compareTo(IndexedOutputs o) {
@@ -444,8 +444,7 @@ public class NeuralNetwork {
         String charsetPath = "datasetText"+File.separator+"charset.txt";
         byte[] input = getBytes(textPath);
         byte[] charset = getBytes(charsetPath);
-        TrainingText trainingText = new TrainingText(new String(input, StandardCharsets.UTF_8),new String(charset,StandardCharsets.UTF_8), chunkSize);
-        return trainingText;
+        return new TrainingText(new String(input, StandardCharsets.UTF_8),new String(charset,StandardCharsets.UTF_8), chunkSize);
     }
 
     private static byte[] getBytes(String textPath) throws IOException {

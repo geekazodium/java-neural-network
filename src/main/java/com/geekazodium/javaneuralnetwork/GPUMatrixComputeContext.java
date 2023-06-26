@@ -124,20 +124,8 @@ public class GPUMatrixComputeContext {
         int width = resultMatrix.width;
         int height = resultMatrix.height;
 
-//        int localWidth = Math.min(localWorkKernelSize, width);
-//        int localHeight = Math.min(localWorkKernelSize, height);
-
-//        if(width%localWidth > 0){
-//            width += localWidth-width%localWidth;
-//        }
-//        if(height%localHeight > 0){
-//            height += localHeight-height%localHeight;
-//        }
-//
         globalWorkSize.put(width);
         globalWorkSize.put(height);
-//        localWorkSize.put(localWidth);
-//        localWorkSize.put(localHeight);
 
         globalWorkSize.rewind();
         localWorkSize.rewind();
@@ -175,68 +163,6 @@ public class GPUMatrixComputeContext {
             clReleaseMemObject(resultMatrixCLBuffer);
         }
     }
-//
-//    private static void benchmarkCL(int vectorSize) {
-//        long[] computeDevices = getPlatformDevices(CL_DEVICE_TYPE_GPU);
-//        long gpuComputeDevice = computeDevices[0];
-//        long context = getContext(gpuComputeDevice);
-//        long commandQueue = getCommandQueue(gpuComputeDevice, context);
-//        long program = compileProgram(gpuComputeDevice, context, listAddSrc);
-////
-////        IntBuffer result = BufferUtils.createIntBuffer(1);
-////        long kernel = clCreateKernel(program,"vector_sum",result);
-////        checkIfSuccess(result,"create kernel");
-//
-//        long timeStart = System.currentTimeMillis();
-//
-//        float[] vecAData = new float[vectorSize];
-//        float[] vecBData = new float[vectorSize];
-//        float[] vecCData = new float[vectorSize];
-//        for (int i = 0; i < vectorSize; i++) {
-//            vecAData[i] = (float) Math.random();
-//            vecBData[i] = (float) Math.random();
-//        }
-//
-//        long vecA = clCreateBuffer(context,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, vecAData,null);
-//        long vecB = clCreateBuffer(context,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, vecBData,null);
-//        long vecC = clCreateBuffer(context,CL_MEM_WRITE_ONLY | CL_MEM_COPY_HOST_PTR, vecCData,null);
-//
-//        clEnqueueWriteBuffer(commandQueue,vecA,true,0,vecAData,null,null);
-//        clEnqueueWriteBuffer(commandQueue,vecB,true,0,vecBData,null,null);
-//
-//        clSetKernelArg(kernel,0,new long[]{vecA});
-//        clSetKernelArg(kernel,1,new long[]{vecB});
-//        clSetKernelArg(kernel,2,new long[]{vecC});
-//
-//        PointerBuffer globalWorkOffset = BufferUtils.createPointerBuffer(1);
-//        PointerBuffer globalWorkSize = BufferUtils.createPointerBuffer(1);
-//        PointerBuffer localWorkSize = BufferUtils.createPointerBuffer(1);
-//
-//        globalWorkOffset.put(0);
-//        globalWorkSize.put(vectorSize);
-//        localWorkSize.put(256);
-//
-//        globalWorkSize.rewind();
-//        globalWorkOffset.rewind();
-//        localWorkSize.rewind();
-//
-//        clEnqueueNDRangeKernel(
-//                commandQueue,kernel,1,
-//                globalWorkOffset.rewind(),globalWorkSize.rewind(),localWorkSize.rewind(),
-//                null, null
-//            );
-//
-//
-//        clEnqueueReadBuffer(commandQueue,vecC,true,0,vecCData,null,null);
-//
-//        clFinish(commandQueue);
-//
-//        long timeComplete = System.currentTimeMillis();
-//
-//        System.out.println(Arrays.toString(vecCData));
-//
-//        System.out.println(timeComplete-timeStart);
-//    }
 
     private static long compileProgram(long device, long context,String src) {
         long program = getProgram(context,src);

@@ -128,7 +128,7 @@ public class GPUComputeContext {
         return learnRatePointer;
     }
 
-    private long stackSizePointer;
+    private final long stackSizePointer;
 
     public long getStackSizePointer() {
         return stackSizePointer;

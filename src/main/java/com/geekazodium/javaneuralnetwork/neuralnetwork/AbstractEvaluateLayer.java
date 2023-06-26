@@ -628,15 +628,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             adjustParameterWorkSize.rewind();
             clEnqueueNDRangeKernel(commandQueue, this.parameterAdjustKernel, 1, null, adjustParameterWorkSize, null, null, null);
 
-//            clEnqueueReadBuffer(commandQueue,evaluateLayer.weightGradientBuffer,true,0,evaluateLayer.weightGradients,null,null);
- //           clEnqueueReadBuffer(commandQueue,evaluateLayer.nodeGradientBuffer,true,0,evaluateLayer.biasGradients,null,null);
-
-//            for (int j = 0; j < evaluateLayer.weightGradients.length; j++) {
-//                float weightGradient = evaluateLayer.weightGradients[j];
-//                if (weightGradient > 1) {
-//                    System.out.println(j);
-//                }
-//            }
         }
     }
 
