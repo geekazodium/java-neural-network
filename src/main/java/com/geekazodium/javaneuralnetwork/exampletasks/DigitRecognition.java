@@ -65,16 +65,16 @@ public class DigitRecognition {
             neuralNetwork = new NeuralNetwork(
                     new InputLayer(TrainingImage.width * TrainingImage.height),
                     new EvaluateLayer[]{
-//                            new ResidualBlockFrame(inputSize, new AbstractLayer[]{
-//                                    new HiddenLayer(200),
-//                                    new HiddenLayer(100),
-//                                    new HiddenLayer(50)
-//                            }, ResidualConcatBlock.instantiate(inputSize,50)),
-//                            new ResidualBlockFrame(inputSize+50, new AbstractLayer[]{
-//                                    new HiddenLayer(200),
-//                                    new HiddenLayer(100),
-//                                    new HiddenLayer(50)
-//                            }, ResidualConcatBlock.instantiate(inputSize+50,50)),//TODO gradient is not passed through layer properly
+                            new ResidualBlockFrame(inputSize, new AbstractLayer[]{
+                                    new HiddenLayer(200),
+                                    new HiddenLayer(100),
+                                    new HiddenLayer(50)
+                            }, ResidualConcatBlock.instantiate(inputSize,50)),
+                            new ResidualBlockFrame(inputSize+50, new AbstractLayer[]{
+                                    new HiddenLayer(200),
+                                    new HiddenLayer(100),
+                                    new HiddenLayer(50)
+                            }, ResidualConcatBlock.instantiate(inputSize+50,50)),
                             new HiddenLayer(200),
                             new HiddenLayer(100),
                             new HiddenLayer(50)
