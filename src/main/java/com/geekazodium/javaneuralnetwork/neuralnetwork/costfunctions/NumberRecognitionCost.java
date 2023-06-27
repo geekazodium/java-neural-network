@@ -3,7 +3,7 @@ package com.geekazodium.javaneuralnetwork.neuralnetwork.costfunctions;
 import com.geekazodium.javaneuralnetwork.GPUComputeContext;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.CostFunction;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.RunnableKernel;
-import com.geekazodium.javaneuralnetwork.neuralnetwork.TrainingImage;
+import com.geekazodium.javaneuralnetwork.neuralnetwork.trainingdatatypes.TrainingImage;
 
 public class NumberRecognitionCost implements CostFunction {
     @Override

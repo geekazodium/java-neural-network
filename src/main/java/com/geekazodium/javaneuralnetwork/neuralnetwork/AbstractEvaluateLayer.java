@@ -36,11 +36,11 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     public void initWeights(){
         int nodeCount = this.previousLayer.nodeCount;
         this.weights = new float[nodeCount*this.nodeCount];
-        fillArrayWithRandomValuesNormalDist(this.weights,0.028);
+        fillArrayWithRandomValuesNormalDist(this.weights,0.05);
     }
     public void initBiases(){
         this.biases = new float[this.nodeCount];
-        fillArrayWithRandomValues(this.biases,0);
+        fillArrayWithRandomValuesNormalDist(this.biases,0.05);
     }
 
     public AbstractLayer getPreviousLayer(){
@@ -401,6 +401,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                         context.getCommandQueue(), layerEvaluateKernel, 2,
                         null, globalWorkSize,null,null,null
                 );
+                clFinish(context.getCommandQueue());
             }
         };
     }
@@ -422,6 +423,7 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                     int stackOffset = layerSize * stackLayer;
                     
                     int listIndex = stackOffset + neuron;
+                    
                     float preActivation = preActivations[listIndex];
                     biasGradient[listIndex] = activationGradients[listIndex] * """+ activationGradientString("preActivation")+"""
                 }
@@ -450,9 +452,6 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                     int previousLayerIndex = previousLayerNeuron + previousLayerStackOffset;
                     
                     previousLayerActivationGradient[previousLayerIndex] = 0;
-                    
-                    
-                    int localGroup = get_local_id(1);
                     
                     for (int n = 0;n < layerSize; n++){// the previous node activation is the derivative of the weight to the value before activation f()
                         float nodeGradient = nodeGradients[n + stackOffset];
@@ -523,9 +522,9 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
                         float biasAdjustment = 0;
                         for(int stackLayer = 0; stackLayer < stackSize; stackLayer ++){
                             int biasStackOffset = stackLayer * layerSize;
-                            biasAdjustment += nodeGradients[biasStackOffset + neuron] / stackSizeFloat;
+                            biasAdjustment += nodeGradients[biasStackOffset + neuron];
                         }
-                        biasBuffers[neuron] += biasAdjustment * -learnRate;
+                        biasBuffers[neuron] += biasAdjustment * -learnRate / stackSizeFloat;
                     }
                     
                     float weightAdjustment = weightGradients[neuron];
@@ -610,24 +609,27 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
             biasKernelWorkSize.put(context.getStackSize());
             biasKernelWorkSize.rewind();
             clEnqueueNDRangeKernel(commandQueue, this.nodeGradientKernel, 2, null, biasKernelWorkSize, null, null, null);
+            clFinish(commandQueue);
 
             PointerBuffer prevLayerGradientKernelSize = BufferUtils.createPointerBuffer(2);
             prevLayerGradientKernelSize.put(this.prevLayerSize);
             prevLayerGradientKernelSize.put(context.getStackSize());
             prevLayerGradientKernelSize.rewind();
             clEnqueueNDRangeKernel(commandQueue, this.previousLayerActivationGradientKernel, 2, null, prevLayerGradientKernelSize, null, null, null);
+            clFinish(commandQueue);
 
             PointerBuffer weightGradientKernelSize = BufferUtils.createPointerBuffer(2);
             weightGradientKernelSize.put(this.prevLayerSize);
             weightGradientKernelSize.put(this.layerSize);
             weightGradientKernelSize.rewind();
             clEnqueueNDRangeKernel(commandQueue, this.weightGradientKernel, 2, null,weightGradientKernelSize,null,null,null);
+            clFinish(commandQueue);
 
             PointerBuffer adjustParameterWorkSize = BufferUtils.createPointerBuffer(1);
             adjustParameterWorkSize.put((long) this.prevLayerSize * (long) this.layerSize);
             adjustParameterWorkSize.rewind();
             clEnqueueNDRangeKernel(commandQueue, this.parameterAdjustKernel, 1, null, adjustParameterWorkSize, null, null, null);
-
+            clFinish(commandQueue);
         }
     }
 
