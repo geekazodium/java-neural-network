@@ -215,6 +215,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     private static void putMergeBlock(Class<? extends ResidualMergeOperation> mergeType) {
         mergeOperations.put(mergeType.getName(),mergeType);
+        mergeOperations.put(mergeType.getName().replace("javaneuralnetwork","handdrawndigitstuff"),mergeType); //convert outdated class names on run.
     }
 
     public static Class<? extends ResidualMergeOperation> getMergeBlock(String mergeType){

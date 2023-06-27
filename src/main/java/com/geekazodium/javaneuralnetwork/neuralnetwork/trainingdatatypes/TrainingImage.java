@@ -1,4 +1,4 @@
-package com.geekazodium.javaneuralnetwork.neuralnetwork;
+package com.geekazodium.javaneuralnetwork.neuralnetwork.trainingdatatypes;
 
 public class TrainingImage {
     private final float[] data;
