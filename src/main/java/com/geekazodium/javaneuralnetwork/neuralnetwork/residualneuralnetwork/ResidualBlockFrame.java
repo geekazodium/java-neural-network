@@ -1,13 +1,14 @@
 package com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork;
 
 import com.geekazodium.javaneuralnetwork.GPUComputeContext;
-import com.geekazodium.javaneuralnetwork.neuralnetwork.activationfunctions.ActivationFunction;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.*;
+import com.geekazodium.javaneuralnetwork.neuralnetwork.activationfunctions.ActivationFunction;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -15,6 +16,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.getIntBytes;
+import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.readNextInt;
 import static org.lwjgl.opencl.CL30.*;
 
 public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, EvaluateLayer,SerializableToJsonLayer,EvaluateModifiableLayer{
@@ -28,6 +31,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     private AbstractLayer previousLayer;
     private AbstractLayer internalNextLayer;
     private long residualMergeGradientBuffer;
+    public int mergeBlockIndex;
 
     @Override
     public int getId() {
@@ -267,7 +271,12 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     @Override
     public void setIndex(int index) {
+        setIndex(index,true);
+    }
+
+    public void setIndex(int index, boolean modifyInternalLayers){
         super.setIndex(index);
+        if(!modifyInternalLayers)return;
         AbstractLayer[] layers = this.internalLayers;
         for (int i = 0; i < layers.length; i++) {
             AbstractLayer internalLayer = layers[i];
@@ -359,7 +368,6 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         @Override
         public void writeToOutputStream(FileOutputStream outputStream) throws IOException {
             super.writeToOutputStream(outputStream);
-            outputStream.write(getIntBytes(this.nodeCount));
             outputStream.write(getIntBytes(this.inputLength));
         }
 
@@ -426,5 +434,11 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     public void writeToOutputStream(FileOutputStream outputStream) throws IOException {
         super.writeToOutputStream(outputStream);
         outputStream.write(getIntBytes(this.layerDepth()-2));
+    }
+
+    @Override
+    public void readFileInputStream(FileInputStream inputStream) throws IOException {
+        super.readFileInputStream(inputStream);
+        this.mergeBlockIndex = readNextInt(inputStream);
     }
 }

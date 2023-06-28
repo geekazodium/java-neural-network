@@ -14,10 +14,12 @@ import com.google.gson.JsonParser;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.getIntBytes;
+import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.readNextInt;
 
 public class NeuralNetwork {
     private final OutputLayer outputLayer;
@@ -154,25 +156,105 @@ public class NeuralNetwork {
 
     public void serialize(File file) throws IOException {
         FileOutputStream outputStream = new FileOutputStream(file);
-        long writeIndex = 0;
+        //long writeIndex = 0;
         List<AbstractLayer> allLayers = getAllLayers();
         for (AbstractLayer layer : allLayers) {
             layer.writeToOutputStream(outputStream);
             outputStream.flush();
         }
+        outputStream.write(getIntBytes(Integer.MAX_VALUE));
         outputStream.close();
     }
 
     public static NeuralNetwork deserialize(File file) throws IOException {
         FileInputStream inputStream = new FileInputStream(file);
+        List<AbstractLayer> networkLayers = new ArrayList<>();
         int readLimit = 100;
         while (readLimit > 0) {
             readLimit--;
             int id = readNextInt(inputStream);
+            if(id == Integer.MAX_VALUE){ // if reach file terminator
+                break;
+            }
             System.out.println("layer id "+id);
-            Class<? extends AbstractLayer> layerClass = layerIdMap.get(id);
+            LayerInitializationHelper layerClass = layerIdMap.get(id);
             if (layerClass == null) throw new RuntimeException("invalid network file");
             int nodeCount = readNextInt(inputStream);
+
+            AbstractLayer abstractLayer = layerClass.instantiateLayer(inputStream,nodeCount);
+            abstractLayer.readFileInputStream(inputStream);
+
+            networkLayers.add(abstractLayer);
+        }
+        inputStream.close();
+
+        List<AbstractLayer> groupedLayers = groupLayers(networkLayers); //refactor in future if more layer grouping types are added, maybe create an interface for layers that group other layers together
+
+        return new NeuralNetwork(
+                (InputLayer) groupedLayers.get(0),
+                groupedLayers.subList(1,groupedLayers.size()-2).toArray(EvaluateLayer[]::new),
+                (OutputLayer) groupedLayers.get(groupedLayers.size()-1)
+        );
+    }
+
+    private static List<AbstractLayer> groupLayers(List<AbstractLayer> networkLayers){
+        List<AbstractLayer> groupedLayers = new ArrayList<>();
+        LinkedList<Pair<ResidualBlockFrame,List<AbstractLayer>>> currentResidualBlockFrame = new LinkedList<>();
+        for (int i = 0; i < networkLayers.size(); i++) {
+            AbstractLayer networkLayer = networkLayers.get(i);
+            if (networkLayer instanceof ResidualBlockFrame residualBlockFrame) {
+                if (currentResidualBlockFrame.size() <= 0) {
+                    groupedLayers.add(networkLayer);
+                }else {
+                    currentResidualBlockFrame.get(0).right.add(networkLayer);
+                }
+                currentResidualBlockFrame.add(0, new Pair<>(residualBlockFrame,new ArrayList<>()));
+                residualBlockFrame.setIndex(i,false);
+            } else if (networkLayer instanceof ResidualBlockFrame.ResidualMergeOperation residualMergeOperation) {
+                Pair<ResidualBlockFrame, List<AbstractLayer>> blockFrameAttrib = currentResidualBlockFrame.remove(0);
+                ResidualBlockFrame blockFrame = blockFrameAttrib.left();
+                if(blockFrame.mergeBlockIndex + 1 + blockFrame.getIndex() != i) throw new RuntimeException("improper network layer group layout.");
+                blockFrame.setInternalLayers(blockFrameAttrib.right().toArray(AbstractLayer[]::new));
+                blockFrame.setResidualMergeOperation(residualMergeOperation);
+            }else {
+                if (currentResidualBlockFrame.size() <= 0) {
+                    groupedLayers.add(networkLayer);
+                }else {
+                    currentResidualBlockFrame.get(0).right.add(networkLayer);
+                }
+            }
+        }
+        return groupedLayers;
+    }
+
+    private record Pair<A,B> (A left,B right){ }
+
+    public static void main(String[] args) throws IOException {
+
+        deserialize(new File("NeuralNetwork/aaa.json"));
+    }
+
+    private static final Map<Integer,LayerInitializationHelper> layerIdMap = new HashMap<>();
+    static {
+        layerIdMap.put(HiddenLayer.HIDDEN_LAYER_ID,new AbstractLayerInitializationHelper(HiddenLayer.class));
+        layerIdMap.put(OutputLayer.OUTPUT_LAYER_ID,new AbstractLayerInitializationHelper(OutputLayer.class));
+        layerIdMap.put(InputLayer.INPUT_LAYER_ID,new AbstractLayerInitializationHelper(InputLayer.class));
+        layerIdMap.put(ResidualBlockFrame.RESIDUAL_BLOCK_ID,new AbstractLayerInitializationHelper(ResidualBlockFrame.class));
+        layerIdMap.put(ResidualBlockFrame.RESIDUAL_ADD_ID, new ResidualAddBlock.InitializationHelper());
+        layerIdMap.put(ResidualBlockFrame.RESIDUAL_CONCAT_ID, new ResidualConcatBlock.InitializationHelper());
+    }
+
+    public interface LayerInitializationHelper{
+        AbstractLayer instantiateLayer(FileInputStream inputStream,int nodeCount) throws IOException;
+    }
+    private static class AbstractLayerInitializationHelper implements LayerInitializationHelper{
+        private final Class<? extends AbstractLayer> layerClass;
+        public AbstractLayerInitializationHelper(Class<? extends AbstractLayer> layerClass){
+            this.layerClass = layerClass;
+        }
+
+        @Override
+        public AbstractLayer instantiateLayer(FileInputStream inputStream,int nodeCount) {
             AbstractLayer abstractLayer;
             try {
                 Constructor<? extends AbstractLayer> declaredConstructor = layerClass.getDeclaredConstructor(int.class);
@@ -181,29 +263,8 @@ public class NeuralNetwork {
                      InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
-            abstractLayer.deserialize(inputStream);
+            return abstractLayer;
         }
-        inputStream.close();
-        return null;
-    }
-
-    public static void main(String[] args) throws IOException {
-        deserialize(new File("NeuralNetwork/aaa.json"));
-    }
-
-    private static int readNextInt(FileInputStream inputStream) throws IOException {
-        byte[] bytes = inputStream.readNBytes(Integer.BYTES);
-        return ByteBuffer.allocate(Integer.BYTES).put(bytes).rewind().getInt();
-    }
-
-    private static final Map<Integer,Class<? extends AbstractLayer>> layerIdMap = new HashMap<>();
-    static {
-        layerIdMap.put(HiddenLayer.HIDDEN_LAYER_ID,HiddenLayer.class);
-        layerIdMap.put(OutputLayer.OUTPUT_LAYER_ID,OutputLayer.class);
-        layerIdMap.put(InputLayer.INPUT_LAYER_ID,InputLayer.class);
-        layerIdMap.put(ResidualBlockFrame.RESIDUAL_BLOCK_ID,ResidualBlockFrame.class);
-        layerIdMap.put(ResidualBlockFrame.RESIDUAL_ADD_ID, ResidualAddBlock.class);
-        layerIdMap.put(ResidualBlockFrame.RESIDUAL_CONCAT_ID, ResidualConcatBlock.class);
     }
 
 

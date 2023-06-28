@@ -1,11 +1,17 @@
 package com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork;
 
 import com.geekazodium.javaneuralnetwork.GPUComputeContext;
+import com.geekazodium.javaneuralnetwork.neuralnetwork.AbstractLayer;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.RunnableKernel;
+import com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper;
 import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+
+import static com.geekazodium.javaneuralnetwork.neuralnetwork.NeuralNetwork.*;
 import static com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualBlockFrame.RESIDUAL_CONCAT_ID;
 import static org.lwjgl.opencl.CL30.*;
 
@@ -186,5 +192,13 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
 
             }
         };
+    }
+
+    public static class InitializationHelper implements LayerInitializationHelper {
+        @Override
+        public AbstractLayer instantiateLayer(FileInputStream inputStream, int nodeCount) throws IOException {
+            int inputSize = NetworkFileFormatHelper.readNextInt(inputStream);
+            return new ResidualConcatBlock(nodeCount,inputSize);
+        }
     }
 }

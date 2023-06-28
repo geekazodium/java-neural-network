@@ -1,15 +1,21 @@
 package com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork;
 
 import com.geekazodium.javaneuralnetwork.GPUComputeContext;
+import com.geekazodium.javaneuralnetwork.neuralnetwork.AbstractLayer;
+import com.geekazodium.javaneuralnetwork.neuralnetwork.NeuralNetwork.LayerInitializationHelper;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.RunnableKernel;
+import com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper;
 import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
 import static com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualBlockFrame.RESIDUAL_ADD_ID;
+import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.getIntBytes;
+import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.readNextInt;
 import static org.lwjgl.opencl.CL30.*;
 
 public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation{
@@ -217,5 +223,14 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
     public void writeToOutputStream(FileOutputStream outputStream) throws IOException {
         super.writeToOutputStream(outputStream);
         outputStream.write(getIntBytes(this.startPosition));
+    }
+
+    public static class InitializationHelper implements LayerInitializationHelper {
+        @Override
+        public AbstractLayer instantiateLayer(FileInputStream inputStream, int nodeCount) throws IOException {
+            int inputSize = readNextInt(inputStream);
+            int startPosition = readNextInt(inputStream);
+            return new ResidualAddBlock(nodeCount,inputSize,startPosition);
+        }
     }
 }

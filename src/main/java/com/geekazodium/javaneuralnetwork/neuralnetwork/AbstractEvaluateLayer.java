@@ -7,13 +7,17 @@ import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.readFloatArray;
+import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.writeFloatArray;
 import static org.lwjgl.opencl.CL30.*;
 
 public abstract class AbstractEvaluateLayer extends AbstractLayer implements EvaluateLayer,SerializableToJsonLayer,EvaluateModifiableLayer {
@@ -667,5 +671,18 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
         super.writeToOutputStream(outputStream);
         writeFloatArray(WEIGHT_ARRAY_ID,this.weights,outputStream);
         writeFloatArray(BIAS_ARRAY_ID,this.biases,outputStream);
+    }
+
+    @Override
+    public void readFileInputStream(FileInputStream inputStream) throws IOException {
+        super.readFileInputStream(inputStream);
+        IntBuffer weightArrayId = IntBuffer.allocate(1);
+        float[] weights = readFloatArray(weightArrayId, inputStream);
+        if(weightArrayId.get() != WEIGHT_ARRAY_ID) throw new RuntimeException("invalid formatting on network file");
+        this.weights = weights;
+        IntBuffer biasArrayId = IntBuffer.allocate(1);
+        float[] biases = readFloatArray(biasArrayId, inputStream);
+        if(biasArrayId.get() != BIAS_ARRAY_ID) throw new RuntimeException("invalid formatting on network file");
+        this.biases = biases;
     }
 }
