@@ -1,6 +1,8 @@
 package com.geekazodium.javaneuralnetwork.neuralnetwork;
 
 public class HiddenLayer extends AbstractEvaluateLayer implements NonFinalLayer{
+
+    private static final int HIDDEN_LAYER_ID = 178;
     private EvaluateLayer nextLayer;
 
     public HiddenLayer(int nodes) {
@@ -20,5 +22,10 @@ public class HiddenLayer extends AbstractEvaluateLayer implements NonFinalLayer{
     @Override
     public EvaluateLayer getNextLayer(){
         return this.nextLayer;
+    }
+
+    @Override
+    public int getId() {
+        return HIDDEN_LAYER_ID;
     }
 }

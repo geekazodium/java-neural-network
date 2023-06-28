@@ -24,10 +24,18 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     public float[] weightGradients;
     private long weightBuffer;
     private long biasBuffer;
+    public static final int EVALUATE_LAYER_ID = 880;
 
     public AbstractEvaluateLayer(int nodes) {
         super(nodes);
     }
+
+    public AbstractEvaluateLayer initValMultiplier(double multiplier){
+        this.initValMultiplier = multiplier;
+        return this;
+    }
+
+    double initValMultiplier = 0.05f;
 
     public void setPreviousLayer(AbstractLayer previousLayer){
         this.previousLayer = previousLayer;
@@ -36,11 +44,11 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     public void initWeights(){
         int nodeCount = this.previousLayer.nodeCount;
         this.weights = new float[nodeCount*this.nodeCount];
-        fillArrayWithRandomValuesNormalDist(this.weights,0.05);
+        fillArrayWithRandomValuesNormalDist(this.weights, initValMultiplier);
     }
     public void initBiases(){
         this.biases = new float[this.nodeCount];
-        fillArrayWithRandomValuesNormalDist(this.biases,0.05);
+        fillArrayWithRandomValuesNormalDist(this.biases,initValMultiplier);
     }
 
     public AbstractLayer getPreviousLayer(){
@@ -642,5 +650,10 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
 
     private String activationGradientString(String gradient){
         return this.activationFunction.getGradientKernelString(gradient);
+    }
+
+    @Override
+    public int getId() {
+        return EVALUATE_LAYER_ID;
     }
 }

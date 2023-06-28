@@ -18,6 +18,11 @@ public class ResidualConcatBlock extends ResidualBlockFrame.ResidualMergeOperati
         super(object);
     }
 
+    @Override
+    public int getId() {
+        return RESIDUAL_CONCAT_ID;
+    }
+
     public static ResidualConcatBlock instantiate(int nodes, int input){
         return new ResidualConcatBlock(nodes+input,input);
     }

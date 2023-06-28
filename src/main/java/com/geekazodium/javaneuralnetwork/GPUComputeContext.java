@@ -11,7 +11,7 @@ import java.nio.LongBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.geekazodium.javaneuralnetwork.neuralnetwork.AbstractLayer.EVALUATE_LAYER_ID;
+import static com.geekazodium.javaneuralnetwork.neuralnetwork.AbstractEvaluateLayer.EVALUATE_LAYER_ID;
 import static org.lwjgl.opencl.CL30.*;
 
 public class GPUComputeContext {

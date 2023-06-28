@@ -3,10 +3,7 @@ package com.geekazodium.javaneuralnetwork.exampletasks;
 import com.geekazodium.javaneuralnetwork.GPUComputeContext;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.*;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.activationfunctions.LeakyRelU;
-import com.geekazodium.javaneuralnetwork.neuralnetwork.costfunctions.NumberRecognitionCost;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.costfunctions.SimpleExpectedOutputCostFunction;
-import com.geekazodium.javaneuralnetwork.neuralnetwork.costfunctions.TokenPredictionCost;
-import com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualAddBlock;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualBlockFrame;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualConcatBlock;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.trainingdatatypes.TextSection;
@@ -135,7 +132,7 @@ public class DigitRecognition {
 
             if(saveBatch){
                 gpuComputeContext.downloadNetworkFromGPU();
-                neuralNetwork.serialize(new File(SAVE_PATH));
+                neuralNetwork.serializeToJson(new File(SAVE_PATH));
                 int total = 0;
                 int correct = 0;
                 int randomInt = random.nextInt(trainingSetSize-10);

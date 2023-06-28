@@ -7,7 +7,7 @@ import static org.lwjgl.opencl.CL30.*;
 
 public abstract class AbstractLayer {
     public static final int ABSTRACT_LAYER_ID = 742;
-    public static final int EVALUATE_LAYER_ID = 880;
+
     public final int nodeCount;
     protected ActivationFunction activationFunction;
     private int index;
@@ -101,6 +101,10 @@ public abstract class AbstractLayer {
 
     public long getLayerSizeBuffer() {
         return 0;
+    }
+
+    public int getId(){
+        return ABSTRACT_LAYER_ID;
     }
 
     public record LayerBuffers(long weights, long biases, int types){}

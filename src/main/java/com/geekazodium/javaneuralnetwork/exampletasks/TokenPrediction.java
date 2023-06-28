@@ -4,7 +4,6 @@ import com.geekazodium.javaneuralnetwork.GPUComputeContext;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.*;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.activationfunctions.LeakyRelU;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.costfunctions.SimpleExpectedOutputCostFunction;
-import com.geekazodium.javaneuralnetwork.neuralnetwork.costfunctions.TokenPredictionCost;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualAddBlock;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualBlockFrame;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.trainingdatatypes.TextSection;
@@ -17,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.TreeSet;
 
 public class TokenPrediction {
-    public static final String SAVE_PATH = "send help.json";
+    public static final String SAVE_PATH = "capable of sending help.json";
 
     public static void main(String[] args) throws Exception {
 
@@ -34,40 +33,41 @@ public class TokenPrediction {
         if (networkFile.exists()){
             neuralNetwork = NeuralNetwork.deserialize(networkFile);
         }else {
+            int mergeChars = 16;
             neuralNetwork = new NeuralNetwork(
                     new InputLayer(inputNeurons),
                     new EvaluateLayer[]{
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
-                                    new HiddenLayer(512*3),
-                                    new HiddenLayer(256*3),
-                                    new HiddenLayer(trainingData.characterSet.size()*15)
-                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*15,0)),
+                                    new HiddenLayer(512*3).initValMultiplier(0.007),
+                                    new HiddenLayer(256*3).initValMultiplier(0.007),
+                                    new HiddenLayer(trainingData.characterSet.size()* mergeChars).initValMultiplier(0.005)
+                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()* mergeChars,0)),
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
-                                    new HiddenLayer(512*3),
-                                    new HiddenLayer(256*3),
-                                    new HiddenLayer(trainingData.characterSet.size()*15)
-                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*15,trainingData.characterSet.size()*15)),
+                                    new HiddenLayer(512*3).initValMultiplier(0.007),
+                                    new HiddenLayer(256*3).initValMultiplier(0.007),
+                                    new HiddenLayer(trainingData.characterSet.size()* mergeChars).initValMultiplier(0.005)
+                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()* mergeChars,trainingData.characterSet.size()* mergeChars)),
                             new ResidualBlockFrame(inputNeurons, new AbstractLayer[]{
-                                    new HiddenLayer(512*3),
-                                    new HiddenLayer(256*3),
-                                    new HiddenLayer(trainingData.characterSet.size()*15)
-                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()*15,trainingData.characterSet.size()*15*2)),
-                            new HiddenLayer(512*4),
-                            new HiddenLayer(256*4),
-                            new HiddenLayer(128*5)
+                                    new HiddenLayer(512*3).initValMultiplier(0.007),
+                                    new HiddenLayer(256*3).initValMultiplier(0.007),
+                                    new HiddenLayer(trainingData.characterSet.size()* mergeChars).initValMultiplier(0.005)
+                            }, new ResidualAddBlock(inputNeurons,trainingData.characterSet.size()* mergeChars,trainingData.characterSet.size()* mergeChars *2)),
+                            new HiddenLayer(512*4).initValMultiplier(0.01),
+                            new HiddenLayer(256*4).initValMultiplier(0.02),
+                            new HiddenLayer(128*5).initValMultiplier(0.025)
                     },
-                    new OutputLayer(outputNeurons)
+                    (OutputLayer) new OutputLayer(outputNeurons).initValMultiplier(0.03)
             );
-            neuralNetwork.serialize(new File(SAVE_PATH));
+            neuralNetwork.serializeToJson(new File(SAVE_PATH));
         }
 
-        int batchSize = 20;
+        int batchSize = 24;
         int stackSize = inputSize*batchSize;
 
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(0.3f);
+        neuralNetwork.setLearnRate(0.25f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();
@@ -83,9 +83,9 @@ public class TokenPrediction {
         TextSection section = trainingData.getExample();
         section.log();
 
-        runTestExample(trainingData,neuralNetwork);
+        //runTestExample(trainingData,neuralNetwork);
 
-        for (int batchCounter = 0; batchCounter < 10000; batchCounter++) {
+        for (int batchCounter = 0; batchCounter < 30000; batchCounter++) {
             float[][] inputs = new float[stackSize][];
             float[][] expectedOuts = new float[stackSize][];
             TextSection example = null;
@@ -110,41 +110,15 @@ public class TokenPrediction {
 
             if(saveBatch){
                 gpuComputeContext.downloadNetworkFromGPU();
-                runTestExample(trainingData, neuralNetwork);
-                neuralNetwork.serialize(new File(SAVE_PATH));
+                if(batchCounter%50 == 50 - 1)runTestExample(trainingData, neuralNetwork);
+                neuralNetwork.serializeToJson(new File(SAVE_PATH));
                 System.out.println("saving network");
             }
             System.out.println("batch #"+batchCounter);
+            Thread.sleep(1000*30);
         }
 
         neuralNetwork.closeGPUTrainingContext();
-    }
-
-    private static class TokenPredictionTrainingFunction implements TrainingFunction {
-
-        private final TokenInputFunction inputFunction;
-
-        public TokenPredictionTrainingFunction(){
-            this.inputFunction = new TokenInputFunction();
-        }
-
-        @Override
-        public void trainOnData(Object trainingDataObject, NeuralNetwork neuralNetwork) {
-            TextSection textSection = (TextSection) trainingDataObject;
-            for (int i = 0; i < TextSection.inputLength; i++) {
-                System.out.println(i);
-                float[] in = this.inputFunction.createInputs(trainingDataObject,i);
-                TokenPredictionCost cost = new TokenPredictionCost();
-                cost.setNext(textSection.section.get(i));
-                neuralNetwork.getInputLayer().backpropagate(in, cost, trainingDataObject);
-            }
-        }
-    }
-
-    private static class TokenInputFunction{
-        public float[] createInputs(Object trainingDataObject,int endIndex) {
-            return ((TextSection) trainingDataObject).getData(endIndex);
-        }
     }
 
     private static void runTestExample(TrainingText trainingData, NeuralNetwork neuralNetwork) {
@@ -164,7 +138,7 @@ public class TokenPrediction {
             chars[integer] = character;
         });
         StringBuilder s = new StringBuilder("How does the concentration of baking soda solution affect the rate of photosy");
-        for (int c = 0; c < 128; c++) {
+        for (int c = 0; c < 32; c++) {
             float[] inputs = TextSection.chunkString(s.toString(), trainingData.characterSet, trainingData.inverseCharset);
             float[] outs = neuralNetwork.evaluate(inputs);
 

@@ -9,14 +9,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NeuralNetwork {
@@ -117,7 +114,7 @@ public class NeuralNetwork {
 
     private int batchCount = 0;
 
-    public void serialize(File file){ //TODO find more RAM efficient way to store neural network in a file
+    public void serializeToJson(File file){ //TODO find more RAM efficient way to store neural network in a file
         JsonObject object = new JsonObject();
 
         object.addProperty("batchCount",batchCount);
@@ -150,6 +147,109 @@ public class NeuralNetwork {
 
         Thread saveThread = new Thread(saveToFile);
         saveThread.start();
+    }
+
+    public static void main(String[] args) throws IOException {
+        FileOutputStream outputStream = new FileOutputStream(new File("NeuralNetwork/out"));
+        writeFloatArray(10,new float[]{0f,2f,1.5f,9.69f},outputStream);
+        outputStream.flush();
+        float[] array = new float[259526];
+        for (int i = 0; i < array.length; i++) {
+            array[i] = (float) Math.random();
+        }
+        writeFloatArray(13, array,outputStream);
+        outputStream.flush();
+        writeFloatArray(10,new float[]{1000f,10000000f,659f,989f},outputStream);
+        outputStream.flush();
+        writeFloatArray(10,new float[]{192f,3.1415926f,0.69f,9.69f},outputStream);
+        outputStream.flush();
+        writeFloatArray(10,new float[]{0f,2f,1.5f,9.69f},outputStream);
+        outputStream.flush();
+        outputStream.close();
+
+        FileInputStream inputStream = new FileInputStream(new File("NeuralNetwork/out"));
+        readAndLogArray(inputStream);
+        readAndLogArray(inputStream);
+        readAndLogArray(inputStream);
+        readAndLogArray(inputStream);
+        readAndLogArray(inputStream);
+        inputStream.close();
+    }
+
+    private static float[] readAndLogArray(FileInputStream inputStream) throws IOException {
+        IntBuffer buffer = IntBuffer.allocate(1);
+        float[] floats = readFloatArray(buffer, inputStream);
+        System.out.println(Arrays.toString(floats));
+        return floats;
+    }
+
+    public void serialize(File file) throws IOException {
+        FileOutputStream outputStream = new FileOutputStream(file);
+        long writeIndex = 0;
+        List<AbstractLayer> allLayers = getAllLayers();
+        for (AbstractLayer layer : allLayers) {
+            outputStream.write(layer.getId());
+        }
+        outputStream.flush();
+        outputStream.close();
+    }
+
+    private List<AbstractLayer> getAllLayers() {
+        List<AbstractLayer> unstackedLayers = new ArrayList<>();
+        for (AbstractLayer layer : this.layers) {
+            unstackedLayers.addAll(List.of(layer.getAsLayerArray()));
+        }
+        return unstackedLayers;
+    }
+
+    public static long writeFloatArray(int id, float[] array, FileOutputStream outputStream) throws IOException {
+        long segmentLength = 0;
+        int arrayLength = array.length;
+        ByteBuffer byteBuffer = ByteBuffer.allocate(Integer.BYTES);
+
+        byteBuffer.clear();
+        outputStream.write(byteBuffer.putInt(id).array());
+        byteBuffer.clear();
+        outputStream.write(byteBuffer.putInt(arrayLength).array());
+
+        segmentLength += Integer.BYTES * 2;
+
+        ByteBuffer floatsBuffer = ByteBuffer.allocate(Float.BYTES * array.length);
+        for (int i = 0, length = array.length; i < length; i++) {
+            float f = array[i];
+            floatsBuffer.putFloat(f);
+        }
+        outputStream.write(floatsBuffer.array());
+        segmentLength += (long) Float.BYTES * arrayLength;
+
+        return segmentLength;
+    }
+
+    public static float[] readFloatArray(IntBuffer idBuffer, FileInputStream inputStream) throws IOException {
+        int id = getFlagBytes(inputStream).getInt();
+        idBuffer.rewind();
+        idBuffer.put(id);
+        int arrayLength = getFlagBytes(inputStream).getInt();
+        float[] array = new float[arrayLength];
+
+        byte[] bytes = inputStream.readNBytes(Float.BYTES * arrayLength);
+        ByteBuffer floatsBuffer = ByteBuffer.allocate(bytes.length).put(bytes);
+        floatsBuffer.rewind();
+        for (int i = 0;i < arrayLength;i++) {
+            float floatValue = floatsBuffer.getFloat();
+            array[i] = floatValue;
+        }
+
+        return array;
+    }
+
+    private static ByteBuffer getFlagBytes(FileInputStream inputStream) throws IOException {
+        byte[] idBytes = new byte[Integer.BYTES];
+        inputStream.read(idBytes);
+        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+        buffer.put(idBytes);
+        buffer.rewind();
+        return buffer;
     }
 
     public static NeuralNetwork deserialize(File file) throws IOException {

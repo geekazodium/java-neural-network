@@ -12,6 +12,11 @@ import static org.lwjgl.opencl.CL30.*;
 public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation{
     public final int startPosition;
 
+    @Override
+    public int getId() {
+        return RESIDUAL_ADD_ID;
+    }
+
     public ResidualAddBlock(int nodes, int input, int startPosition) {
         super(nodes,input);
         this.startPosition = startPosition;

@@ -1,6 +1,7 @@
 package com.geekazodium.javaneuralnetwork.neuralnetwork;
 
 public class InputLayer extends AbstractLayer implements NonFinalLayer{
+    private static final int INPUT_LAYER_ID = 607;
     private EvaluateLayer nextLayer;
 
     public InputLayer(int nodes) {
@@ -26,5 +27,10 @@ public class InputLayer extends AbstractLayer implements NonFinalLayer{
     @Override
     public EvaluateLayer getNextLayer(){
         return this.nextLayer;
+    }
+
+    @Override
+    public int getId() {
+        return INPUT_LAYER_ID;
     }
 }

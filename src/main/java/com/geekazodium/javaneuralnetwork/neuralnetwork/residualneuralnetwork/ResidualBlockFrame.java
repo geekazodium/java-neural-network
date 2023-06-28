@@ -27,6 +27,11 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
     private AbstractLayer internalNextLayer;
     private long residualMergeGradientBuffer;
 
+    @Override
+    public int getId() {
+        return RESIDUAL_BLOCK_ID;
+    }
+
     public ResidualBlockFrame(int inNodes, AbstractLayer[] internalLayers, ResidualMergeOperation residualMergeOperation) {
         super(inNodes);
         this.residualMergeOperation = residualMergeOperation;
