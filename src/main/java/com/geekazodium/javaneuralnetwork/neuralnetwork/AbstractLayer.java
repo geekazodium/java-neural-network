@@ -3,6 +3,12 @@ package com.geekazodium.javaneuralnetwork.neuralnetwork;
 import com.geekazodium.javaneuralnetwork.GPUComputeContext;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.activationfunctions.ActivationFunction;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+
 import static org.lwjgl.opencl.CL30.*;
 
 public abstract class AbstractLayer {
@@ -106,6 +112,80 @@ public abstract class AbstractLayer {
     public int getId(){
         return ABSTRACT_LAYER_ID;
     }
+
+    public void writeToOutputStream(FileOutputStream outputStream) throws IOException {
+        outputStream.write(getIntBytes(getId()));
+        outputStream.write(getIntBytes(nodeCount));
+    }
+
+    protected static byte[] getLongBytes(long l){
+        return ByteBuffer.allocate(Long.BYTES).putLong(l).array();
+    }
+
+    protected static byte[] getIntBytes(int i) {
+        return ByteBuffer.allocate(Integer.BYTES).putInt(i).array();
+    }
+
+
+    public static long writeFloatArray(int id, float[] array, FileOutputStream outputStream) throws IOException {
+        long segmentLength = 0;
+        int arrayLength = array.length;
+        ByteBuffer byteBuffer = ByteBuffer.allocate(Integer.BYTES);
+
+        byteBuffer.clear();
+        outputStream.write(byteBuffer.putInt(id).array());
+        byteBuffer.clear();
+        outputStream.write(byteBuffer.putInt(arrayLength).array());
+
+        segmentLength += Integer.BYTES * 2;
+
+        ByteBuffer floatsBuffer = ByteBuffer.allocate(Float.BYTES * array.length);
+        for (int i = 0, length = array.length; i < length; i++) {
+            float f = array[i];
+            floatsBuffer.putFloat(f);
+        }
+        outputStream.write(floatsBuffer.array());
+        segmentLength += (long) Float.BYTES * arrayLength;
+
+        return segmentLength;
+    }
+
+    private static ByteBuffer getFlagBytes(FileInputStream inputStream) throws IOException {
+        byte[] idBytes = new byte[Integer.BYTES];
+        inputStream.read(idBytes);
+        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+        buffer.put(idBytes);
+        buffer.rewind();
+        return buffer;
+    }
+
+    public static float[] readFloatArray(IntBuffer idBuffer, FileInputStream inputStream) throws IOException {
+        int id = getFlagBytes(inputStream).getInt();
+        idBuffer.rewind();
+        idBuffer.put(id);
+        int arrayLength = getFlagBytes(inputStream).getInt();
+        float[] array = new float[arrayLength];
+
+        byte[] bytes = inputStream.readNBytes(Float.BYTES * arrayLength);
+        ByteBuffer floatsBuffer = ByteBuffer.allocate(bytes.length).put(bytes);
+        floatsBuffer.rewind();
+        for (int i = 0;i < arrayLength;i++) {
+            float floatValue = floatsBuffer.getFloat();
+            array[i] = floatValue;
+        }
+
+        return array;
+    }
+
+    public void deserialize(FileInputStream inputStream) {
+
+    }
+//    private static float[] readAndLogArray(FileInputStream inputStream) throws IOException {
+//        IntBuffer buffer = IntBuffer.allocate(1);
+//        float[] floats = readFloatArray(buffer, inputStream);
+//        System.out.println(Arrays.toString(floats));
+//        return floats;
+//    }
 
     public record LayerBuffers(long weights, long biases, int types){}
 }

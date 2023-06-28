@@ -8,6 +8,8 @@ import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,7 +19,7 @@ import static org.lwjgl.opencl.CL30.*;
 
 public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, EvaluateLayer,SerializableToJsonLayer,EvaluateModifiableLayer{
 
-    private static final int RESIDUAL_BLOCK_ID = 997;
+    public static final int RESIDUAL_BLOCK_ID = 997;
     public static final int RESIDUAL_ADD_ID = 286;
     public static final int RESIDUAL_CONCAT_ID = 133;
     private AbstractLayer[] internalLayers;
@@ -194,7 +196,7 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         JsonArray array = object.get("internalLayers").getAsJsonArray();
         ArrayList<AbstractLayer> internalLayers = new ArrayList<>();
         array.forEach(jsonElement -> {
-            internalLayers.add((AbstractLayer) NeuralNetwork.deserializeLayer(jsonElement));
+            internalLayers.add((AbstractLayer) NeuralNetwork.deserializeLayerJson(jsonElement));
         });
         AbstractLayer[] internalLayersArray = new AbstractLayer[internalLayers.size()];
         internalLayers.toArray(internalLayersArray);
@@ -244,12 +246,15 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
         array[0] = this;
         array[depth-1] = this.residualMergeOperation;
 
+        int indexCounter = 0;
         for (AbstractLayer internalLayer : this.internalLayers) {
             AbstractLayer[] internalArray = internalLayer.getAsLayerArray();
 
+            internalLayer.setIndex(indexCounter);
             for (int i = 0; i < internalArray.length; i++) {
-                array[i+1+internalLayer.getIndex()] = internalArray[i];
+                array[i+1+indexCounter] = internalArray[i];
             }
+            indexCounter += internalLayer.layerDepth();
         }
 
         return array;
@@ -351,6 +356,13 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
             serialized.addProperty("mergeInputs",this.inputLength);
         }
 
+        @Override
+        public void writeToOutputStream(FileOutputStream outputStream) throws IOException {
+            super.writeToOutputStream(outputStream);
+            outputStream.write(getIntBytes(this.nodeCount));
+            outputStream.write(getIntBytes(this.inputLength));
+        }
+
         public abstract int getType();
 
         @Override
@@ -410,4 +422,9 @@ public class ResidualBlockFrame extends AbstractLayer implements NonFinalLayer, 
 
     long layerNodeCountBuffer = 0;
 
+    @Override
+    public void writeToOutputStream(FileOutputStream outputStream) throws IOException {
+        super.writeToOutputStream(outputStream);
+        outputStream.write(getIntBytes(this.layerDepth()-2));
+    }
 }

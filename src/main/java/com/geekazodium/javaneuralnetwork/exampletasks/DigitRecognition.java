@@ -57,7 +57,7 @@ public class DigitRecognition {
         int inputSize = 784;
 
         if (networkFile.exists()){
-            neuralNetwork = NeuralNetwork.deserialize(networkFile);
+            neuralNetwork = NeuralNetwork.deserializeJson(networkFile);
         }else {
             neuralNetwork = new NeuralNetwork(
                     new InputLayer(TrainingImage.width * TrainingImage.height),

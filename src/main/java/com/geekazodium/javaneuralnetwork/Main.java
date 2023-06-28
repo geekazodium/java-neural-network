@@ -65,7 +65,7 @@ public class Main {
 
         NeuralNetwork neuralNetwork;
         try {
-            neuralNetwork = NeuralNetwork.deserialize(new File("better digit recognition.json"));
+            neuralNetwork = NeuralNetwork.deserializeJson(new File("better digit recognition.json"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

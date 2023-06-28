@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.TreeSet;
 
 public class TokenPrediction {
-    public static final String SAVE_PATH = "capable of sending help.json";
+    public static final String SAVE_PATH = "aaa.json";
 
     public static void main(String[] args) throws Exception {
 
@@ -31,7 +31,7 @@ public class TokenPrediction {
         NeuralNetwork neuralNetwork;
         File networkFile = new File(SAVE_PATH);
         if (networkFile.exists()){
-            neuralNetwork = NeuralNetwork.deserialize(networkFile);
+            neuralNetwork = NeuralNetwork.deserializeJson(networkFile);
         }else {
             int mergeChars = 16;
             neuralNetwork = new NeuralNetwork(
@@ -58,7 +58,7 @@ public class TokenPrediction {
                     },
                     (OutputLayer) new OutputLayer(outputNeurons).initValMultiplier(0.03)
             );
-            neuralNetwork.serializeToJson(new File(SAVE_PATH));
+            neuralNetwork.serialize(new File(SAVE_PATH));
         }
 
         int batchSize = 24;

@@ -1,7 +1,7 @@
 package com.geekazodium.javaneuralnetwork.neuralnetwork;
 
 public class OutputLayer extends AbstractEvaluateLayer{
-    private static final int OUTPUT_LAYER_ID = 763;
+    public static final int OUTPUT_LAYER_ID = 763;
     public OutputLayer(int nodes) {
         super(nodes);
     }

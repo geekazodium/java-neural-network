@@ -6,6 +6,9 @@ import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+
 import static com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualBlockFrame.RESIDUAL_ADD_ID;
 import static org.lwjgl.opencl.CL30.*;
 
@@ -208,5 +211,11 @@ public class ResidualAddBlock  extends ResidualBlockFrame.ResidualMergeOperation
 
             clEnqueueNDRangeKernel(context.getCommandQueue(), residualGradientsKernel,2,null,workSize,null,null,null);
         }
+    }
+
+    @Override
+    public void writeToOutputStream(FileOutputStream outputStream) throws IOException {
+        super.writeToOutputStream(outputStream);
+        outputStream.write(getIntBytes(this.startPosition));
     }
 }

@@ -7,6 +7,8 @@ import com.google.gson.JsonObject;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -655,5 +657,15 @@ public abstract class AbstractEvaluateLayer extends AbstractLayer implements Eva
     @Override
     public int getId() {
         return EVALUATE_LAYER_ID;
+    }
+
+    private static final int WEIGHT_ARRAY_ID = 295;
+    private static final int BIAS_ARRAY_ID = 513;
+
+    @Override
+    public void writeToOutputStream(FileOutputStream outputStream) throws IOException {
+        super.writeToOutputStream(outputStream);
+        writeFloatArray(WEIGHT_ARRAY_ID,this.weights,outputStream);
+        writeFloatArray(BIAS_ARRAY_ID,this.biases,outputStream);
     }
 }

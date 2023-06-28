@@ -2,7 +2,9 @@ package com.geekazodium.javaneuralnetwork.neuralnetwork;
 
 import com.geekazodium.javaneuralnetwork.GPUComputeContext;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.activationfunctions.ActivationFunction;
+import com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualAddBlock;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualBlockFrame;
+import com.geekazodium.javaneuralnetwork.neuralnetwork.residualneuralnetwork.ResidualConcatBlock;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.trainingdatatypes.TrainingImage;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -10,8 +12,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.io.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -149,110 +152,72 @@ public class NeuralNetwork {
         saveThread.start();
     }
 
-    public static void main(String[] args) throws IOException {
-        FileOutputStream outputStream = new FileOutputStream(new File("NeuralNetwork/out"));
-        writeFloatArray(10,new float[]{0f,2f,1.5f,9.69f},outputStream);
-        outputStream.flush();
-        float[] array = new float[259526];
-        for (int i = 0; i < array.length; i++) {
-            array[i] = (float) Math.random();
-        }
-        writeFloatArray(13, array,outputStream);
-        outputStream.flush();
-        writeFloatArray(10,new float[]{1000f,10000000f,659f,989f},outputStream);
-        outputStream.flush();
-        writeFloatArray(10,new float[]{192f,3.1415926f,0.69f,9.69f},outputStream);
-        outputStream.flush();
-        writeFloatArray(10,new float[]{0f,2f,1.5f,9.69f},outputStream);
-        outputStream.flush();
-        outputStream.close();
-
-        FileInputStream inputStream = new FileInputStream(new File("NeuralNetwork/out"));
-        readAndLogArray(inputStream);
-        readAndLogArray(inputStream);
-        readAndLogArray(inputStream);
-        readAndLogArray(inputStream);
-        readAndLogArray(inputStream);
-        inputStream.close();
-    }
-
-    private static float[] readAndLogArray(FileInputStream inputStream) throws IOException {
-        IntBuffer buffer = IntBuffer.allocate(1);
-        float[] floats = readFloatArray(buffer, inputStream);
-        System.out.println(Arrays.toString(floats));
-        return floats;
-    }
-
     public void serialize(File file) throws IOException {
         FileOutputStream outputStream = new FileOutputStream(file);
         long writeIndex = 0;
         List<AbstractLayer> allLayers = getAllLayers();
         for (AbstractLayer layer : allLayers) {
-            outputStream.write(layer.getId());
+            layer.writeToOutputStream(outputStream);
+            outputStream.flush();
         }
-        outputStream.flush();
         outputStream.close();
     }
+
+    public static NeuralNetwork deserialize(File file) throws IOException {
+        FileInputStream inputStream = new FileInputStream(file);
+        int readLimit = 100;
+        while (readLimit > 0) {
+            readLimit--;
+            int id = readNextInt(inputStream);
+            System.out.println("layer id "+id);
+            Class<? extends AbstractLayer> layerClass = layerIdMap.get(id);
+            if (layerClass == null) throw new RuntimeException("invalid network file");
+            int nodeCount = readNextInt(inputStream);
+            AbstractLayer abstractLayer;
+            try {
+                Constructor<? extends AbstractLayer> declaredConstructor = layerClass.getDeclaredConstructor(int.class);
+                abstractLayer = declaredConstructor.newInstance(nodeCount);
+            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException |
+                     InvocationTargetException e) {
+                throw new RuntimeException(e);
+            }
+            abstractLayer.deserialize(inputStream);
+        }
+        inputStream.close();
+        return null;
+    }
+
+    public static void main(String[] args) throws IOException {
+        deserialize(new File("NeuralNetwork/aaa.json"));
+    }
+
+    private static int readNextInt(FileInputStream inputStream) throws IOException {
+        byte[] bytes = inputStream.readNBytes(Integer.BYTES);
+        return ByteBuffer.allocate(Integer.BYTES).put(bytes).rewind().getInt();
+    }
+
+    private static final Map<Integer,Class<? extends AbstractLayer>> layerIdMap = new HashMap<>();
+    static {
+        layerIdMap.put(HiddenLayer.HIDDEN_LAYER_ID,HiddenLayer.class);
+        layerIdMap.put(OutputLayer.OUTPUT_LAYER_ID,OutputLayer.class);
+        layerIdMap.put(InputLayer.INPUT_LAYER_ID,InputLayer.class);
+        layerIdMap.put(ResidualBlockFrame.RESIDUAL_BLOCK_ID,ResidualBlockFrame.class);
+        layerIdMap.put(ResidualBlockFrame.RESIDUAL_ADD_ID, ResidualAddBlock.class);
+        layerIdMap.put(ResidualBlockFrame.RESIDUAL_CONCAT_ID, ResidualConcatBlock.class);
+    }
+
 
     private List<AbstractLayer> getAllLayers() {
         List<AbstractLayer> unstackedLayers = new ArrayList<>();
         for (AbstractLayer layer : this.layers) {
-            unstackedLayers.addAll(List.of(layer.getAsLayerArray()));
+            AbstractLayer[] layerArray = layer.getAsLayerArray();
+            if(layerArray == null)continue;
+            unstackedLayers.addAll(List.of(layerArray));
         }
         return unstackedLayers;
     }
 
-    public static long writeFloatArray(int id, float[] array, FileOutputStream outputStream) throws IOException {
-        long segmentLength = 0;
-        int arrayLength = array.length;
-        ByteBuffer byteBuffer = ByteBuffer.allocate(Integer.BYTES);
-
-        byteBuffer.clear();
-        outputStream.write(byteBuffer.putInt(id).array());
-        byteBuffer.clear();
-        outputStream.write(byteBuffer.putInt(arrayLength).array());
-
-        segmentLength += Integer.BYTES * 2;
-
-        ByteBuffer floatsBuffer = ByteBuffer.allocate(Float.BYTES * array.length);
-        for (int i = 0, length = array.length; i < length; i++) {
-            float f = array[i];
-            floatsBuffer.putFloat(f);
-        }
-        outputStream.write(floatsBuffer.array());
-        segmentLength += (long) Float.BYTES * arrayLength;
-
-        return segmentLength;
-    }
-
-    public static float[] readFloatArray(IntBuffer idBuffer, FileInputStream inputStream) throws IOException {
-        int id = getFlagBytes(inputStream).getInt();
-        idBuffer.rewind();
-        idBuffer.put(id);
-        int arrayLength = getFlagBytes(inputStream).getInt();
-        float[] array = new float[arrayLength];
-
-        byte[] bytes = inputStream.readNBytes(Float.BYTES * arrayLength);
-        ByteBuffer floatsBuffer = ByteBuffer.allocate(bytes.length).put(bytes);
-        floatsBuffer.rewind();
-        for (int i = 0;i < arrayLength;i++) {
-            float floatValue = floatsBuffer.getFloat();
-            array[i] = floatValue;
-        }
-
-        return array;
-    }
-
-    private static ByteBuffer getFlagBytes(FileInputStream inputStream) throws IOException {
-        byte[] idBytes = new byte[Integer.BYTES];
-        inputStream.read(idBytes);
-        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-        buffer.put(idBytes);
-        buffer.rewind();
-        return buffer;
-    }
-
-    public static NeuralNetwork deserialize(File file) throws IOException {
+    public static NeuralNetwork deserializeJson(File file) throws IOException {
         FileInputStream inputStream = new FileInputStream(file);
         byte[] b = inputStream.readAllBytes();
         inputStream.close();
@@ -268,7 +233,7 @@ public class NeuralNetwork {
         OutputLayer outLayer = null;
 
         for (JsonElement evaluateLayer : evaluateLayers) {
-            AbstractLayer layer = (AbstractLayer) deserializeLayer(evaluateLayer);
+            AbstractLayer layer = (AbstractLayer) deserializeLayerJson(evaluateLayer);
             if(layer instanceof HiddenLayer hiddenLayer){
                 hiddenLayers.add(hiddenLayer);
             }else if(layer instanceof OutputLayer outputLayer){
@@ -286,7 +251,7 @@ public class NeuralNetwork {
         return network;
     }
 
-    public static SerializableToJsonLayer deserializeLayer(JsonElement evaluateLayer){
+    public static SerializableToJsonLayer deserializeLayerJson(JsonElement evaluateLayer){
         JsonObject layerJson = evaluateLayer.getAsJsonObject();
         String type = layerJson.get("type").getAsString();
 

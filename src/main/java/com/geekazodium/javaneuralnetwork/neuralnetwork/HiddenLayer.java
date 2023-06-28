@@ -2,7 +2,7 @@ package com.geekazodium.javaneuralnetwork.neuralnetwork;
 
 public class HiddenLayer extends AbstractEvaluateLayer implements NonFinalLayer{
 
-    private static final int HIDDEN_LAYER_ID = 178;
+    public static final int HIDDEN_LAYER_ID = 178;
     private EvaluateLayer nextLayer;
 
     public HiddenLayer(int nodes) {
