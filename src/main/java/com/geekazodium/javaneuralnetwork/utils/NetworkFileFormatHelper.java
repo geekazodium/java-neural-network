@@ -14,7 +14,12 @@ public class NetworkFileFormatHelper {
     public static byte[] getIntBytes(int i) {
         return ByteBuffer.allocate(Integer.BYTES).putInt(i).array();
     }
-
+    public static byte[] getFloatBytes(float f) {
+        return ByteBuffer.allocate(Float.BYTES).putFloat(f).array();
+    }
+    public static int getFloatBytesAsInt(float f) {
+        return ByteBuffer.allocate(Math.max(Float.BYTES,Integer.BYTES)).putFloat(f).rewind().getInt();
+    }
 
     public static long writeFloatArray(int id, float[] array, FileOutputStream outputStream) throws IOException {
         long segmentLength = 0;

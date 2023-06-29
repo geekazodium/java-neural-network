@@ -18,8 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.getIntBytes;
-import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.readNextInt;
+import static com.geekazodium.javaneuralnetwork.utils.NetworkFileFormatHelper.*;
 
 public class NeuralNetwork {
     private final OutputLayer outputLayer;
@@ -190,11 +189,13 @@ public class NeuralNetwork {
 
         List<AbstractLayer> groupedLayers = groupLayers(networkLayers); //refactor in future if more layer grouping types are added, maybe create an interface for layers that group other layers together
 
-        return new NeuralNetwork(
+        NeuralNetwork neuralNetwork = new NeuralNetwork(
                 (InputLayer) groupedLayers.get(0),
-                groupedLayers.subList(1,groupedLayers.size()-2).toArray(EvaluateLayer[]::new),
-                (OutputLayer) groupedLayers.get(groupedLayers.size()-1)
+                groupedLayers.subList(1, groupedLayers.size() - 1).toArray(EvaluateLayer[]::new),
+                (OutputLayer) groupedLayers.get(groupedLayers.size() - 1),
+                true
         );
+        return neuralNetwork;
     }
 
     private static List<AbstractLayer> groupLayers(List<AbstractLayer> networkLayers){
@@ -216,6 +217,7 @@ public class NeuralNetwork {
                 if(blockFrame.mergeBlockIndex + 1 + blockFrame.getIndex() != i) throw new RuntimeException("improper network layer group layout.");
                 blockFrame.setInternalLayers(blockFrameAttrib.right().toArray(AbstractLayer[]::new));
                 blockFrame.setResidualMergeOperation(residualMergeOperation);
+                blockFrame.initInternalLayers();
             }else {
                 if (currentResidualBlockFrame.size() <= 0) {
                     groupedLayers.add(networkLayer);
@@ -228,11 +230,6 @@ public class NeuralNetwork {
     }
 
     private record Pair<A,B> (A left,B right){ }
-
-    public static void main(String[] args) throws IOException {
-
-        deserialize(new File("NeuralNetwork/aaa.json"));
-    }
 
     private static final Map<Integer,LayerInitializationHelper> layerIdMap = new HashMap<>();
     static {

@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.TreeSet;
 
 public class TokenPrediction {
-    public static final String SAVE_PATH = "aaa.json";
+    public static final String SAVE_PATH = "send hepl";
 
     public static void main(String[] args) throws Exception {
 
@@ -31,7 +31,7 @@ public class TokenPrediction {
         NeuralNetwork neuralNetwork;
         File networkFile = new File(SAVE_PATH);
         if (networkFile.exists()){
-            neuralNetwork = NeuralNetwork.deserializeJson(networkFile);
+            neuralNetwork = NeuralNetwork.deserialize(networkFile);
         }else {
             int mergeChars = 16;
             neuralNetwork = new NeuralNetwork(
@@ -83,7 +83,7 @@ public class TokenPrediction {
         TextSection section = trainingData.getExample();
         section.log();
 
-        //runTestExample(trainingData,neuralNetwork);
+        runTestExample(trainingData,neuralNetwork);
 
         for (int batchCounter = 0; batchCounter < 30000; batchCounter++) {
             float[][] inputs = new float[stackSize][];
@@ -111,7 +111,7 @@ public class TokenPrediction {
             if(saveBatch){
                 gpuComputeContext.downloadNetworkFromGPU();
                 if(batchCounter%50 == 50 - 1)runTestExample(trainingData, neuralNetwork);
-                neuralNetwork.serializeToJson(new File(SAVE_PATH));
+                neuralNetwork.serialize(new File(SAVE_PATH));
                 System.out.println("saving network");
             }
             System.out.println("batch #"+batchCounter);
