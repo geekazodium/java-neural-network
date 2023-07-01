@@ -2,7 +2,7 @@
   <configuration default="false" name="DigitRecognition" type="Application" factoryName="Application">
     <option name="ALTERNATIVE_JRE_PATH" value="openjdk-19" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
-    <option name="MAIN_CLASS_NAME" value="com.geekazodium.javaneuralnetwork.exampletasks.DigitRecognition" />
+    <option name="MAIN_CLASS_NAME" value="com.geekazodium.javaneuralnetwork.tasks.DigitRecognition" />
     <module name="java-neural-network.main" />
     <option name="VM_PARAMETERS" value="-Xmx16G" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/NeuralNetwork" />
