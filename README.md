@@ -1,11 +1,15 @@
+# -- Disclaimer --
+
+I'm no expert at security and this code may have possibly serious vulnerabilities that I'm not aware of, 
+if you find any, please create an issue with details to what part(s) of the code are vulnerable and what
+that code is vulnerable to. 
+#### thanks in advance!
+
+
 # To-do:
 
 ````
--MUST REWRITE EVALUATE TO INSTEAD STORE A RUNNABLE KERNEL INSTANCE INSTEAD OF A LONG
--REWRITE CODE TO MAKE IT LESS CLUTTERED
-
 -implement softmax activation function.
--reimplement parts of kernel functionality to accommodate softmax activation.
 -implement gradient function for softmax.
--create more RAM and Drive mem efficient file storage format for neural network.
+-reimplement parts of kernel functionality to accommodate softmax activation.
 ````
