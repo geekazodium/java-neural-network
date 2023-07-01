@@ -1,4 +1,4 @@
-package com.geekazodium.javaneuralnetwork.exampletasks;
+package com.geekazodium.javaneuralnetwork.tasks;
 
 import com.geekazodium.javaneuralnetwork.GPUComputeContext;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.*;
@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.TreeSet;
 
 public class TokenPrediction {
-    public static final String SAVE_PATH = "send hepl";
+    public static final String SAVE_PATH = "send help please";
 
     public static void main(String[] args) throws Exception {
 
@@ -67,7 +67,7 @@ public class TokenPrediction {
         GPUComputeContext gpuComputeContext = neuralNetwork.useGPUTrainingContext();
 
         neuralNetwork.setActivationFunction(new LeakyRelU());
-        neuralNetwork.setLearnRate(0.25f);
+        neuralNetwork.setLearnRate(0.1f);
 
         gpuComputeContext.setStackSize(stackSize);
         gpuComputeContext.createNetworkBuffers();

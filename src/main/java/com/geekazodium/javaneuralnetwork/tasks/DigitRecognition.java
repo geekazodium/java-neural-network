@@ -1,4 +1,4 @@
-package com.geekazodium.javaneuralnetwork.exampletasks;
+package com.geekazodium.javaneuralnetwork.tasks;
 
 import com.geekazodium.javaneuralnetwork.GPUComputeContext;
 import com.geekazodium.javaneuralnetwork.neuralnetwork.*;

@@ -58,8 +58,9 @@ public class NetworkFileFormatHelper {
         idBuffer.rewind();
         idBuffer.put(id);
         int arrayLength = getFlagBytes(inputStream).getInt();
-        float[] array = new float[arrayLength];
+        if(arrayLength<=0)throw new RuntimeException("negative layer neuron count invalid");
 
+        float[] array = new float[arrayLength];
         byte[] bytes = inputStream.readNBytes(Float.BYTES * arrayLength);
         ByteBuffer floatsBuffer = ByteBuffer.allocate(bytes.length).put(bytes);
         floatsBuffer.rewind();
