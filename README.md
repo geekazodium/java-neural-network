@@ -1,8 +1,5 @@
-# -- Disclaimer --
-
-I'm no expert at security and this code may have possibly serious vulnerabilities that I'm not aware of, 
-if you find any, please create an issue with details to what part(s) of the code are vulnerable and what
-that code is vulnerable to. 
+THIS PROJECT IS CURRENTLY ON HOLD, DO NOT EXPECT ANY CHANGES.
+I MIGHT GET BACK TO IMPLEMENTING THE REST OF THE FUNCTIONALITY LATER.
 #### thanks in advance!
 
 
